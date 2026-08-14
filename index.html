@@ -1,26 +1,37 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0f14">
   <title>Greyhound Track Guide</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <p class="eyebrow">Track database</p>
-      <h1>Greyhound Track Guide</h1>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">TG</div>
+      <div>
+        <p class="eyebrow">Race-day reference</p>
+        <h1>Greyhound Track Guide</h1>
+      </div>
     </div>
-    <div class="summary" id="summary">Loading tracks...</div>
+    <div class="header-actions">
+      <div class="summary" id="summary">Loading tracks...</div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="true">
+        <span>Light</span>
+        <span class="toggle-track" aria-hidden="true"><span></span></span>
+        <span>Dark</span>
+      </button>
+    </div>
   </header>
 
   <main>
-    <section class="controls" aria-label="Filters">
+    <section class="controls" aria-label="Track filters">
       <div class="country-tabs" id="countryTabs"></div>
       <label class="search">
-        <span>Search</span>
-        <input id="searchInput" type="search" placeholder="Track, rule, note...">
+        <span>Search tracks</span>
+        <input id="searchInput" type="search" placeholder="Name, distance, rule..." autocomplete="off">
       </label>
       <label class="select">
         <span>Strategy</span>
@@ -29,17 +40,28 @@
         </select>
       </label>
       <label class="select">
-        <span>Sort</span>
+        <span>Sort by</span>
         <select id="sortSelect">
-          <option value="country">Country then track</option>
+          <option value="country">Country &amp; track</option>
           <option value="rate">Favourite win rate</option>
           <option value="sample">Sample size</option>
           <option value="track">Track name</option>
         </select>
       </label>
+      <button class="starred-filter" id="starredFilter" type="button" aria-pressed="false">
+        <span aria-hidden="true">★</span> Starred
+      </button>
     </section>
 
-    <section class="legend" id="legend"></section>
+    <details class="legend-panel">
+      <summary>Strategy guide</summary>
+      <div class="legend" id="legend"></div>
+    </details>
+
+    <section class="results-head" aria-live="polite">
+      <p id="resultCount">Tracks</p>
+      <p>Tap the star to build a race-day shortlist.</p>
+    </section>
     <section class="track-grid" id="trackGrid" aria-live="polite"></section>
   </main>
 
@@ -47,19 +69,22 @@
     <article class="track-card">
       <div class="card-head">
         <div>
-          <p class="country"></p>
+          <div class="card-labels">
+            <span class="country"></span>
+            <span class="strategy"></span>
+          </div>
           <h2></h2>
         </div>
-        <button class="star" type="button" aria-label="Star track" title="Star track">☆</button>
+        <button class="star" type="button" aria-label="Add track to shortlist" title="Add to shortlist">☆</button>
       </div>
       <p class="headline"></p>
       <div class="metrics"></div>
       <div class="rule"></div>
       <div class="distances"></div>
-      <label class="personal-note">
-        <span>Your note</span>
-        <textarea rows="3" placeholder="Add your own race-day note..."></textarea>
-      </label>
+      <details class="personal-note">
+        <summary>Personal note</summary>
+        <textarea rows="3" aria-label="Personal track note" placeholder="Add a race-day note..."></textarea>
+      </details>
     </article>
   </template>
 
