@@ -4,6 +4,8 @@ const state = {
   search: "",
   strategy: "all",
   sort: "country",
+  starredOnly: false,
+  theme: localStorage.getItem("greyhoundGuide.theme") || "dark",
   starred: new Set(JSON.parse(localStorage.getItem("greyhoundGuide.starred") || "[]")),
   notes: JSON.parse(localStorage.getItem("greyhoundGuide.notes") || "{}")
 };
@@ -14,10 +16,22 @@ const els = {
   searchInput: document.querySelector("#searchInput"),
   strategyFilter: document.querySelector("#strategyFilter"),
   sortSelect: document.querySelector("#sortSelect"),
+  starredFilter: document.querySelector("#starredFilter"),
+  themeToggle: document.querySelector("#themeToggle"),
+  themeColor: document.querySelector('meta[name="theme-color"]'),
+  resultCount: document.querySelector("#resultCount"),
   legend: document.querySelector("#legend"),
   trackGrid: document.querySelector("#trackGrid"),
   template: document.querySelector("#trackTemplate")
 };
+
+applyTheme();
+
+els.themeToggle.addEventListener("click", () => {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("greyhoundGuide.theme", state.theme);
+  applyTheme();
+});
 
 fetch("tracks.json")
   .then((response) => {
@@ -70,6 +84,12 @@ function setupControls() {
     render();
   });
 
+  els.starredFilter.addEventListener("click", () => {
+    state.starredOnly = !state.starredOnly;
+    els.starredFilter.setAttribute("aria-pressed", String(state.starredOnly));
+    render();
+  });
+
   els.legend.innerHTML = state.data.strategyLegend.map((item) => (
     `<div class="legend-item"><strong>${item.key}</strong>: ${item.meaning}</div>`
   )).join("");
@@ -79,6 +99,7 @@ function render() {
   const tracks = filteredTracks();
   updateTabs();
   updateSummary(tracks.length);
+  els.resultCount.textContent = `${tracks.length} ${tracks.length === 1 ? "track" : "tracks"}`;
 
   els.trackGrid.innerHTML = "";
   if (!tracks.length) {
@@ -110,6 +131,7 @@ function filteredTracks() {
   return state.data.tracks
     .filter((track) => state.country === "all" || track.country === state.country)
     .filter((track) => state.strategy === "all" || track.strategy === state.strategy)
+    .filter((track) => !state.starredOnly || state.starred.has(slug(track.name)))
     .filter(textMatches)
     .sort(sortTracks);
 }
@@ -146,13 +168,18 @@ function updateSummary(count) {
 function renderTrack(track) {
   const node = els.template.content.firstElementChild.cloneNode(true);
   const id = slug(track.name);
-  node.querySelector(".country").textContent = `${track.country} · ${track.strategy}`;
+  const cardClass = badgeClass(track.strategy);
+  node.classList.add(cardClass);
+  node.querySelector(".country").textContent = track.country;
+  node.querySelector(".strategy").textContent = track.strategy;
   node.querySelector("h2").textContent = track.name;
   node.querySelector(".headline").textContent = track.headline;
 
   const star = node.querySelector(".star");
   star.textContent = state.starred.has(id) ? "★" : "☆";
   star.classList.toggle("active", state.starred.has(id));
+  star.setAttribute("aria-label", state.starred.has(id) ? "Remove track from shortlist" : "Add track to shortlist");
+  star.title = state.starred.has(id) ? "Remove from shortlist" : "Add to shortlist";
   star.addEventListener("click", () => {
     if (state.starred.has(id)) {
       state.starred.delete(id);
@@ -212,6 +239,14 @@ function badgeClass(strategy) {
   if (strategy.includes("TRAP")) return "trap";
   if (strategy.includes("RESEARCH")) return "research";
   return "caution";
+}
+
+function applyTheme() {
+  const isDark = state.theme === "dark";
+  document.documentElement.dataset.theme = state.theme;
+  els.themeToggle.setAttribute("aria-pressed", String(isDark));
+  els.themeToggle.setAttribute("aria-label", `Switch to ${isDark ? "light" : "dark"} mode`);
+  els.themeColor.content = isDark ? "#0b0f14" : "#f2f4f7";
 }
 
 function slug(value) {
