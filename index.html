@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Greyhound Track Guide</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Track database</p>
+      <h1>Greyhound Track Guide</h1>
+    </div>
+    <div class="summary" id="summary">Loading tracks...</div>
+  </header>
+
+  <main>
+    <section class="controls" aria-label="Filters">
+      <div class="country-tabs" id="countryTabs"></div>
+      <label class="search">
+        <span>Search</span>
+        <input id="searchInput" type="search" placeholder="Track, rule, note...">
+      </label>
+      <label class="select">
+        <span>Strategy</span>
+        <select id="strategyFilter">
+          <option value="all">All strategies</option>
+        </select>
+      </label>
+      <label class="select">
+        <span>Sort</span>
+        <select id="sortSelect">
+          <option value="country">Country then track</option>
+          <option value="rate">Favourite win rate</option>
+          <option value="sample">Sample size</option>
+          <option value="track">Track name</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="legend" id="legend"></section>
+    <section class="track-grid" id="trackGrid" aria-live="polite"></section>
+  </main>
+
+  <template id="trackTemplate">
+    <article class="track-card">
+      <div class="card-head">
+        <div>
+          <p class="country"></p>
+          <h2></h2>
+        </div>
+        <button class="star" type="button" aria-label="Star track" title="Star track">☆</button>
+      </div>
+      <p class="headline"></p>
+      <div class="metrics"></div>
+      <div class="rule"></div>
+      <div class="distances"></div>
+      <label class="personal-note">
+        <span>Your note</span>
+        <textarea rows="3" placeholder="Add your own race-day note..."></textarea>
+      </label>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
