@@ -340,6 +340,64 @@
       "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 18.7% of all runners."
     },
     {
+      "name": "Ballarat",
+      "country": "AU",
+      "strategy": "B / CHECK FORM",
+      "grade": "B",
+      "headline": "Mixed overall signal that improves over the longer distances.",
+      "favouriteWinRate": 39.1,
+      "sample": 3502,
+      "wins": 1368,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 16.2,
+      "rule": "Use price with form and distance. The 390m profile is weaker than 450m and 545m.",
+      "distances": [
+        { "distance": "390m", "note": "717 wins from 1,899 unique favourites, 37.8%." },
+        { "distance": "450m", "note": "543 wins from 1,357 unique favourites, 40.0%." },
+        { "distance": "545m", "note": "89 wins from 204 unique favourites, 43.6%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 16.2% of all runners."
+    },
+    {
+      "name": "Q1 Lakeside",
+      "country": "AU",
+      "strategy": "A FOLLOW",
+      "grade": "A",
+      "headline": "Reliable overall favourite signal, strongest at 457m.",
+      "favouriteWinRate": 41.9,
+      "sample": 3258,
+      "wins": 1364,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 16.1,
+      "rule": "Follow price with normal checks, giving the 457m profile more weight than 352m.",
+      "distances": [
+        { "distance": "352m", "note": "419 wins from 1,094 unique favourites, 38.3%." },
+        { "distance": "390m", "note": "379 wins from 907 unique favourites, 41.8%." },
+        { "distance": "457m", "note": "473 wins from 1,046 unique favourites, 45.2%." },
+        { "distance": "550m", "note": "67 wins from 162 unique favourites, 41.4%." }
+      ],
+      "notes": "Betfair BSP archive from the available 2025 history through 14 August 2026. Box 1 won 16.1% of all runners."
+    },
+    {
+      "name": "Dubbo",
+      "country": "AU",
+      "strategy": "A+ FOLLOW",
+      "grade": "A+",
+      "headline": "Strong overall favourite track, but the 400m profile is weaker.",
+      "favouriteWinRate": 43.7,
+      "sample": 1651,
+      "wins": 721,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 21.8,
+      "rule": "Follow price strongly at 318m and 516m; use more caution at 400m.",
+      "distances": [
+        { "distance": "318m", "note": "403 wins from 887 unique favourites, 45.4%." },
+        { "distance": "400m", "note": "196 wins from 513 unique favourites, 38.2%." },
+        { "distance": "516m", "note": "108 wins from 210 unique favourites, 51.4%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 21.8% of all runners and 50.7% when carrying the favourite."
+    },
+    {
       "name": "Sheffield",
       "country": "UK",
       "strategy": "TRAP-SPECIFIC",
@@ -355,6 +413,44 @@
         { "distance": "500m", "note": "Sequence start noted in the user's working sheet." }
       ],
       "notes": "Betfair BSP archive, 1 January to 14 August 2026. The earlier snapshot was 38.8% overall with T5 at 47.9%."
+    },
+    {
+      "name": "Doncaster",
+      "country": "UK",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "B",
+      "headline": "Solid overall favourite rate; T2 was the strongest favourite draw.",
+      "favouriteWinRate": 40.1,
+      "sample": 1700,
+      "wins": 682,
+      "bestDraw": "T2",
+      "bestDrawRate": 45.4,
+      "rule": "Use T2 as a positive tie-breaker. The stronger 483m result has a smaller sample than 275m and 450m.",
+      "distances": [
+        { "distance": "275m", "note": "303 wins from 762 unique favourites, 39.8%." },
+        { "distance": "450m", "note": "275 wins from 721 unique favourites, 38.1%." },
+        { "distance": "483m", "note": "87 wins from 181 unique favourites, 48.1%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, 1 January to 14 August 2026. Favourite traps: T2 45.4%, T6 42.0%, T3 41.1%, T1 39.8%, T5 38.5%, T4 33.8%."
+    },
+    {
+      "name": "Monmore",
+      "country": "UK",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "C overall",
+      "headline": "Weaker favourite track; T1 was strongest and 480m was weakest.",
+      "favouriteWinRate": 36.1,
+      "sample": 2166,
+      "wins": 782,
+      "bestDraw": "T1",
+      "bestDrawRate": 39.4,
+      "rule": "Be cautious following price alone, especially at 480m. Treat T1 as a modest positive draw signal.",
+      "distances": [
+        { "distance": "264m", "note": "217 wins from 589 unique favourites, 36.8%." },
+        { "distance": "480m", "note": "488 wins from 1,421 unique favourites, 34.3%." },
+        { "distance": "630m", "note": "62 wins from 136 unique favourites, 45.6%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, 1 January to 14 August 2026. Favourite traps: T1 39.4%, T5 36.2%, T6 36.1%, T2 35.4%, T4 34.3%, T3 34.1%."
     },
     {
       "name": "Newcastle",
@@ -520,6 +616,23 @@
       "rule": "Use price plus draw. Prefer T3 setups and downgrade wide T6 favourites when prices are close.",
       "distances": [],
       "notes": "Greyhound Racing Ireland official results, 1 January to 14 August 2026; joint favourites excluded."
+    },
+    {
+      "name": "Thurles",
+      "country": "IRE",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "C overall",
+      "headline": "Mixed favourite track; T1 led, but the trap sample is small.",
+      "favouriteWinRate": 36.4,
+      "sample": 132,
+      "wins": 48,
+      "bestDraw": "T1",
+      "bestDrawRate": 43.5,
+      "rule": "Use price with draw and form. Treat the T1 advantage cautiously because it comes from only 23 favourite starts.",
+      "distances": [
+        { "distance": "All races", "note": "Favourite traps: T1 43.5%, T2 41.2%, T4 39.3%, T6 37.5%, T3 33.3%, T5 22.2%." }
+      ],
+      "notes": "Greyhound Racing Ireland official results across 36 meetings, 1 January to 14 August 2026. Single marked favourites only; joint favourites excluded."
     }
   ]
 }
