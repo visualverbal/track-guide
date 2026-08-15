@@ -62,6 +62,7 @@
     "Grafton": "auBetfair",
     "Taree": "auBetfair",
     "Ballarat": "auBetfair",
+    "The Meadows": "auBetfair",
     "Dubbo": "auBetfair",
     "Parklands": "auNew",
     "Q1 Lakeside": "auNew",
@@ -432,6 +433,25 @@
         { "distance": "545m", "note": "89 wins from 204 unique favourites, 43.6%; smaller sample." }
       ],
       "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 16.2% of all runners."
+    },
+    {
+      "name": "The Meadows",
+      "country": "AU",
+      "strategy": "B / CHECK FORM",
+      "grade": "B+",
+      "headline": "Solid favourite signal, with longer distances stronger than 525m.",
+      "favouriteWinRate": 41.0,
+      "sample": 2689,
+      "wins": 1102,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 20.5,
+      "rule": "Use price with form at 525m; give the favourite more weight at 600m. Treat the 730m result cautiously because its sample is smaller.",
+      "distances": [
+        { "distance": "525m", "note": "864 wins from 2,143 unique favourites, 40.3%." },
+        { "distance": "600m", "note": "193 wins from 456 unique favourites, 42.3%." },
+        { "distance": "730m", "note": "45 wins from 90 unique favourites, 50.0%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 20.5% of all runners; five joint-favourite races were excluded."
     },
     {
       "name": "Q1 Lakeside",
