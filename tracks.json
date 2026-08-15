@@ -5,6 +5,81 @@
     { "code": "UK", "name": "United Kingdom" },
     { "code": "IRE", "name": "Ireland" }
   ],
+  "dataProfiles": {
+    "auGuide": {
+      "source": "Original guide + Betfair BSP",
+      "period": "Jan 2022 - May 2025",
+      "drawBasis": "All runners from box",
+      "drawLabel": "All-runner box"
+    },
+    "auBetfair": {
+      "source": "Betfair BSP archive",
+      "period": "Jan 2022 - May 2025",
+      "drawBasis": "All runners from box",
+      "drawLabel": "All-runner box"
+    },
+    "auNew": {
+      "source": "Betfair BSP archive",
+      "period": "2025 - 14 Aug 2026",
+      "drawBasis": "All runners from box",
+      "drawLabel": "All-runner box"
+    },
+    "ukGuide": {
+      "source": "2026 graded-race analysis",
+      "period": "2026 snapshot",
+      "drawBasis": "Favourite wins from trap",
+      "drawLabel": "Fav by trap"
+    },
+    "ukBetfair": {
+      "source": "Betfair BSP archive",
+      "period": "1 Jan - 14 Aug 2026",
+      "drawBasis": "Favourite wins from trap",
+      "drawLabel": "Fav by trap"
+    },
+    "ireOfficial": {
+      "source": "Greyhound Racing Ireland",
+      "period": "1 Jan - 14 Aug 2026",
+      "drawBasis": "Favourite wins from trap",
+      "drawLabel": "Fav by trap"
+    }
+  },
+  "trackProfiles": {
+    "Gosford": "auGuide",
+    "Angle Park": "auGuide",
+    "Darwin": "auGuide",
+    "Mandurah": "auGuide",
+    "Launceston": "auGuide",
+    "Wentworth Park": "auGuide",
+    "Sandown Park": "auGuide",
+    "Cannington": "auGuide",
+    "Bendigo": "auGuide",
+    "Warragul": "auGuide",
+    "Richmond (Loop)": "auBetfair",
+    "Geelong": "auBetfair",
+    "Townsville": "auBetfair",
+    "Wagga": "auBetfair",
+    "Warrnambool": "auBetfair",
+    "Grafton": "auBetfair",
+    "Taree": "auBetfair",
+    "Ballarat": "auBetfair",
+    "Dubbo": "auBetfair",
+    "Parklands": "auNew",
+    "Q1 Lakeside": "auNew",
+    "Sheffield": "ukBetfair",
+    "Doncaster": "ukBetfair",
+    "Monmore": "ukBetfair",
+    "Newcastle": "ukGuide",
+    "Towcester": "ukGuide",
+    "Hove": "ukGuide",
+    "Harlow": "ukGuide",
+    "The Valley": "ukGuide",
+    "Star Pelaw": "ukGuide",
+    "Kinsley": "ukGuide",
+    "Tralee": "ireOfficial",
+    "Waterford": "ireOfficial",
+    "Mullingar": "ireOfficial",
+    "Thurles": "ireOfficial"
+  },
   "strategyLegend": [
     { "key": "A+ FOLLOW", "meaning": "Favourite price has been highly reliable in the noted distance/sample." },
     { "key": "A FOLLOW", "meaning": "Favourite price is reliable, but still check draw and race shape." },

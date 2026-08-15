@@ -4,6 +4,7 @@ const state = {
   search: "",
   strategy: "all",
   sort: "country",
+  view: localStorage.getItem("greyhoundGuide.view") || "cards",
   starredOnly: false,
   theme: localStorage.getItem("greyhoundGuide.theme") || "dark",
   starred: new Set(JSON.parse(localStorage.getItem("greyhoundGuide.starred") || "[]")),
@@ -21,7 +22,10 @@ const els = {
   themeColor: document.querySelector('meta[name="theme-color"]'),
   resultCount: document.querySelector("#resultCount"),
   legend: document.querySelector("#legend"),
+  viewToggle: document.querySelector("#viewToggle"),
   trackGrid: document.querySelector("#trackGrid"),
+  trackTableWrap: document.querySelector("#trackTableWrap"),
+  trackTableBody: document.querySelector("#trackTableBody"),
   template: document.querySelector("#trackTemplate")
 };
 
@@ -44,7 +48,7 @@ fetch("tracks.json")
     render();
   })
   .catch((error) => {
-    els.trackGrid.innerHTML = `<div class="empty">${error.message}</div>`;
+    els.trackGrid.innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
     els.summary.textContent = "Data unavailable";
   });
 
@@ -90,31 +94,61 @@ function setupControls() {
     render();
   });
 
-  els.legend.innerHTML = state.data.strategyLegend.map((item) => (
-    `<div class="legend-item"><strong>${item.key}</strong>: ${item.meaning}</div>`
-  )).join("");
+  els.viewToggle.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-view]");
+    if (!button) return;
+    state.view = button.dataset.view;
+    localStorage.setItem("greyhoundGuide.view", state.view);
+    render();
+  });
+
+  const strategyItems = state.data.strategyLegend.map((item) => (
+    `<div class="legend-item"><strong>${escapeHtml(item.key)}</strong>: ${escapeHtml(item.meaning)}</div>`
+  ));
+  strategyItems.push(
+    '<div class="legend-item"><strong>Confidence</strong>: High uses 1,000+ favourite races, medium 300-999, and low fewer than 300.</div>',
+    '<div class="legend-item"><strong>Draw metrics</strong>: AU shows the win rate for all runners from that box. UK and Ireland show the favourite win rate from that trap.</div>',
+    '<div class="legend-item"><strong>Period</strong>: Each card and table row shows the source window used for its displayed statistics.</div>'
+  );
+  els.legend.innerHTML = strategyItems.join("");
 }
 
 function render() {
   const tracks = filteredTracks();
-  updateTabs();
+  const useCards = state.view === "cards";
+  updateControls();
   updateSummary(tracks.length);
   els.resultCount.textContent = `${tracks.length} ${tracks.length === 1 ? "track" : "tracks"}`;
-
   els.trackGrid.innerHTML = "";
+  els.trackTableBody.innerHTML = "";
+
   if (!tracks.length) {
+    els.trackGrid.hidden = false;
+    els.trackTableWrap.hidden = true;
     els.trackGrid.innerHTML = '<div class="empty">No tracks match those filters.</div>';
     return;
   }
 
-  for (const track of tracks) {
-    els.trackGrid.append(renderTrack(track));
+  els.trackGrid.hidden = !useCards;
+  els.trackTableWrap.hidden = useCards;
+
+  if (useCards) {
+    for (const track of tracks) {
+      els.trackGrid.append(renderTrack(track));
+    }
+  } else {
+    const fragment = document.createDocumentFragment();
+    for (const track of tracks) {
+      fragment.append(renderTableRow(track));
+    }
+    els.trackTableBody.append(fragment);
   }
 }
 
 function filteredTracks() {
   const textMatches = (track) => {
     if (!state.search) return true;
+    const profile = profileFor(track);
     const haystack = [
       track.name,
       track.country,
@@ -123,6 +157,9 @@ function filteredTracks() {
       track.headline,
       track.rule,
       track.notes,
+      profile.source,
+      profile.period,
+      profile.drawBasis,
       ...(track.distances || []).map((distance) => `${distance.distance} ${distance.note}`)
     ].join(" ").toLowerCase();
     return haystack.includes(state.search);
@@ -153,61 +190,60 @@ function valueForSort(value) {
   return Number.isFinite(value) ? value : -1;
 }
 
-function updateTabs() {
+function updateControls() {
   els.countryTabs.querySelectorAll("button").forEach((button) => {
     button.classList.toggle("active", button.dataset.country === state.country);
+  });
+  els.viewToggle.querySelectorAll("button").forEach((button) => {
+    const active = button.dataset.view === state.view;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
 }
 
 function updateSummary(count) {
   const total = state.data.tracks.length;
   const starred = state.starred.size;
-  els.summary.textContent = `${count} shown / ${total} tracks · ${starred} starred · updated ${state.data.updated}`;
+  els.summary.textContent = `${count} shown / ${total} tracks | ${starred} starred | updated ${state.data.updated}`;
 }
 
 function renderTrack(track) {
   const node = els.template.content.firstElementChild.cloneNode(true);
-  const id = slug(track.name);
-  const cardClass = badgeClass(track.strategy);
-  node.classList.add(cardClass);
+  const profile = profileFor(track);
+  const confidence = confidenceFor(track);
+  node.classList.add(badgeClass(track.strategy));
   node.querySelector(".country").textContent = track.country;
   node.querySelector(".strategy").textContent = track.strategy;
   node.querySelector("h2").textContent = track.name;
   node.querySelector(".headline").textContent = track.headline;
 
-  const star = node.querySelector(".star");
-  star.textContent = state.starred.has(id) ? "★" : "☆";
-  star.classList.toggle("active", state.starred.has(id));
-  star.setAttribute("aria-label", state.starred.has(id) ? "Remove track from shortlist" : "Add track to shortlist");
-  star.title = state.starred.has(id) ? "Remove from shortlist" : "Add to shortlist";
-  star.addEventListener("click", () => {
-    if (state.starred.has(id)) {
-      state.starred.delete(id);
-    } else {
-      state.starred.add(id);
-    }
-    localStorage.setItem("greyhoundGuide.starred", JSON.stringify([...state.starred]));
-    render();
-  });
+  configureStar(node.querySelector(".star"), track);
+
+  node.querySelector(".card-meta").innerHTML = [
+    confidenceBadge(confidence),
+    `<span class="meta-item" title="Data source">${escapeHtml(profile.source)}</span>`,
+    `<span class="meta-item" title="Analysis period">${escapeHtml(profile.period)}</span>`
+  ].join("");
 
   node.querySelector(".metrics").innerHTML = [
     metric("Fav win", percent(track.favouriteWinRate)),
     metric("Sample", number(track.sample)),
-    metric("Best draw", drawText(track))
+    metric(profile.drawLabel, drawText(track))
   ].join("");
 
   const rule = node.querySelector(".rule");
-  rule.innerHTML = `<span class="badge ${badgeClass(track.strategy)}">${track.grade || track.strategy}</span><br>${track.rule}`;
+  rule.innerHTML = `<span class="badge ${badgeClass(track.strategy)}">${escapeHtml(track.grade || track.strategy)}</span><br>${escapeHtml(track.rule)}`;
 
   const distances = node.querySelector(".distances");
   distances.innerHTML = (track.distances || []).map((distance) => (
-    `<div class="distance"><strong>${distance.distance}</strong>: ${distance.note}</div>`
+    `<div class="distance"><strong>${escapeHtml(distance.distance)}</strong>: ${escapeHtml(distance.note)}</div>`
   )).join("");
   if (!track.distances || !track.distances.length) {
-    distances.innerHTML = `<div class="distance">${track.notes}</div>`;
+    distances.innerHTML = `<div class="distance">${escapeHtml(track.notes)}</div>`;
   }
 
   const textarea = node.querySelector("textarea");
+  const id = slug(track.name);
   textarea.value = state.notes[id] || "";
   textarea.addEventListener("input", () => {
     state.notes[id] = textarea.value;
@@ -217,8 +253,90 @@ function renderTrack(track) {
   return node;
 }
 
+function renderTableRow(track) {
+  const row = document.createElement("tr");
+  const profile = profileFor(track);
+  const confidence = confidenceFor(track);
+  const distance = strongestDistance(track);
+  row.className = badgeClass(track.strategy);
+  row.innerHTML = `
+    <td>
+      <strong class="table-track">${escapeHtml(track.name)}</strong>
+      <span class="table-sub">${escapeHtml(track.country)} | ${escapeHtml(track.strategy)}</span>
+    </td>
+    <td>${confidenceBadge(confidence)}</td>
+    <td><strong class="table-rate">${percent(track.favouriteWinRate)}</strong></td>
+    <td>${number(track.sample)}</td>
+    <td><strong>${escapeHtml(drawText(track))}</strong><span class="table-sub">${escapeHtml(profile.drawBasis)}</span></td>
+    <td><strong>${escapeHtml(distance.label)}</strong><span class="table-sub">${escapeHtml(distance.detail)}</span></td>
+    <td>${escapeHtml(profile.source)}<span class="table-sub">${escapeHtml(profile.period)}</span></td>
+    <td class="table-star-cell"></td>
+  `;
+  configureStar(row.querySelector(".table-star-cell").appendChild(document.createElement("button")), track, true);
+  return row;
+}
+
+function configureStar(button, track, compact = false) {
+  const id = slug(track.name);
+  const active = state.starred.has(id);
+  button.type = "button";
+  button.className = compact ? "star table-star" : "star";
+  button.textContent = active ? "\u2605" : "\u2606";
+  button.classList.toggle("active", active);
+  button.setAttribute("aria-label", active ? "Remove track from shortlist" : "Add track to shortlist");
+  button.title = active ? "Remove from shortlist" : "Add to shortlist";
+  button.addEventListener("click", () => {
+    if (state.starred.has(id)) {
+      state.starred.delete(id);
+    } else {
+      state.starred.add(id);
+    }
+    localStorage.setItem("greyhoundGuide.starred", JSON.stringify([...state.starred]));
+    render();
+  });
+}
+
+function profileFor(track) {
+  const profileKey = state.data.trackProfiles?.[track.name];
+  const profile = state.data.dataProfiles?.[profileKey];
+  if (profile) return profile;
+  return {
+    source: "Guide analysis",
+    period: "Period not specified",
+    drawBasis: track.country === "AU" ? "All runners from box" : "Favourite wins from trap",
+    drawLabel: track.country === "AU" ? "All-runner box" : "Fav by trap"
+  };
+}
+
+function confidenceFor(track) {
+  if (track.sample >= 1000) {
+    return { level: "high", label: "High", title: "High sample confidence: 1,000+ favourite races" };
+  }
+  if (track.sample >= 300) {
+    return { level: "medium", label: "Medium", title: "Medium sample confidence: 300-999 favourite races" };
+  }
+  return { level: "low", label: "Low", title: "Low sample confidence: fewer than 300 favourite races" };
+}
+
+function confidenceBadge(confidence) {
+  return `<span class="confidence confidence-${confidence.level}" title="${confidence.title}">${confidence.label} confidence</span>`;
+}
+
+function strongestDistance(track) {
+  let best = null;
+  for (const item of track.distances || []) {
+    const match = item.note.match(/(\d+(?:\.\d+)?)%/);
+    if (!match) continue;
+    const rate = Number(match[1]);
+    if (!best || rate > best.rate) {
+      best = { label: item.distance, detail: `${rate.toFixed(1)}%`, rate };
+    }
+  }
+  return best || { label: "Not split", detail: "Track-wide only" };
+}
+
 function metric(label, value) {
-  return `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`;
+  return `<div class="metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
 
 function percent(value) {
@@ -251,4 +369,13 @@ function applyTheme() {
 
 function slug(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

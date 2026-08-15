@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0f14">
   <title>Greyhound Track Guide</title>
-  <link rel="stylesheet" href="styles.css?v=20260815">
+  <link rel="stylesheet" href="styles.css?v=20260815b">
 </head>
 <body>
   <header class="topbar">
@@ -49,20 +49,45 @@
         </select>
       </label>
       <button class="starred-filter" id="starredFilter" type="button" aria-pressed="false">
-        <span aria-hidden="true">★</span> Starred
+        <span aria-hidden="true">&#9733;</span> Starred
       </button>
     </section>
 
     <details class="legend-panel">
-      <summary>Strategy guide</summary>
+      <summary>Strategy &amp; data guide</summary>
       <div class="legend" id="legend"></div>
     </details>
 
     <section class="results-head" aria-live="polite">
       <p id="resultCount">Tracks</p>
-      <p>Tap the star to build a race-day shortlist.</p>
+      <div class="results-actions">
+        <p>Tap the star to build a race-day shortlist.</p>
+        <div class="view-toggle" id="viewToggle" role="group" aria-label="Result view">
+          <button type="button" data-view="cards" aria-pressed="true">Cards</button>
+          <button type="button" data-view="table" aria-pressed="false">Table</button>
+        </div>
+      </div>
     </section>
+
     <section class="track-grid" id="trackGrid" aria-live="polite"></section>
+    <div class="track-table-wrap" id="trackTableWrap" hidden>
+      <table class="track-table">
+        <caption class="sr-only">Track statistics comparison</caption>
+        <thead>
+          <tr>
+            <th scope="col">Track</th>
+            <th scope="col">Confidence</th>
+            <th scope="col">Fav win</th>
+            <th scope="col">Sample</th>
+            <th scope="col">Draw metric</th>
+            <th scope="col">Strongest distance</th>
+            <th scope="col">Source</th>
+            <th scope="col"><span class="sr-only">Shortlist</span></th>
+          </tr>
+        </thead>
+        <tbody id="trackTableBody"></tbody>
+      </table>
+    </div>
   </main>
 
   <template id="trackTemplate">
@@ -75,9 +100,10 @@
           </div>
           <h2></h2>
         </div>
-        <button class="star" type="button" aria-label="Add track to shortlist" title="Add to shortlist">☆</button>
+        <button class="star" type="button" aria-label="Add track to shortlist" title="Add to shortlist">&#9734;</button>
       </div>
       <p class="headline"></p>
+      <div class="card-meta"></div>
       <div class="metrics"></div>
       <div class="rule"></div>
       <div class="distances"></div>
@@ -88,6 +114,6 @@
     </article>
   </template>
 
-  <script src="app.js?v=20260815"></script>
+  <script src="app.js?v=20260815b"></script>
 </body>
 </html>

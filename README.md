@@ -5,9 +5,9 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 ## Files
 
 - `index.html` loads the page.
-- `tracks.json` contains all track data, country grouping, strategy labels and notes.
+- `tracks.json` contains all track data, country grouping, strategy labels, source profiles and notes.
 - `styles.css` controls layout and presentation.
-- `app.js` renders filters, cards, starred tracks and local browser notes.
+- `app.js` renders filters, card/table views, confidence labels, starred tracks and local browser notes.
 
 ## Data Basis
 
@@ -19,9 +19,19 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 - A favourite is the single shortest Betfair starting price for Betfair calculations, or the single runner marked `f` in Irish results. Joint favourites are excluded.
 - UK and Irish `bestDrawRate` is the win percentage when the favourite starts from that trap.
 
+## Confidence Labels
+
+Confidence is derived from the track sample size:
+
+- High: at least 1,000 races.
+- Medium: 300 to 999 races.
+- Low: fewer than 300 races.
+
+Each track is assigned to a key in `trackProfiles`. That key points to a reusable entry in `dataProfiles`, which supplies the source, date range, draw definition and draw label shown by the site.
+
 ## Updating Tracks
 
-Edit `tracks.json`, then commit the change. GitHub Pages will serve the updated site after the repository is published from the `main` branch root.
+Edit `tracks.json`, then commit the change. GitHub Pages will serve the updated site after the repository is published from the `main` branch root. When adding a track, also add its name to `trackProfiles` using the most appropriate data profile.
 
 Keep new entries in this shape:
 
