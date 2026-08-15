@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-15",
+  "updated": "2026-08-16",
   "countries": [
     { "code": "AU", "name": "Australia" },
     { "code": "UK", "name": "United Kingdom" },
@@ -64,6 +64,9 @@
     "Ballarat": "auBetfair",
     "The Meadows": "auBetfair",
     "The Gardens": "auBetfair",
+    "Healesville": "auBetfair",
+    "Capalaba": "auBetfair",
+    "Mount Gambier": "auBetfair",
     "Dubbo": "auBetfair",
     "Parklands": "auNew",
     "Q1 Lakeside": "auNew",
@@ -71,6 +74,7 @@
     "Doncaster": "ukBetfair",
     "Monmore": "ukBetfair",
     "Romford": "ukBetfair",
+    "Yarmouth": "ukBetfair",
     "Newcastle": "ukGuide",
     "Towcester": "ukGuide",
     "Hove": "ukGuide",
@@ -477,6 +481,62 @@
       "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 19.0% of all runners; six joint-favourite races were excluded."
     },
     {
+      "name": "Healesville",
+      "country": "AU",
+      "strategy": "A FOLLOW",
+      "grade": "A",
+      "headline": "Reliable favourite signal at both sprint distances, with Box 8 strongest overall.",
+      "favouriteWinRate": 41.7,
+      "sample": 3337,
+      "wins": 1392,
+      "bestDraw": "Box 8",
+      "bestDrawRate": 16.3,
+      "rule": "Follow price with normal form checks at 300m and 350m. Use Box 8 as a positive tie-breaker on the straight track.",
+      "distances": [
+        { "distance": "300m", "note": "737 wins from 1,760 unique favourites, 41.9%." },
+        { "distance": "350m", "note": "655 wins from 1,577 unique favourites, 41.5%." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 8 won 16.3% of all runners; five joint-favourite races were excluded."
+    },
+    {
+      "name": "Capalaba",
+      "country": "AU",
+      "strategy": "A+ FOLLOW",
+      "grade": "A+",
+      "headline": "Very strong 366m favourite strike rate, with the outside Box 8 strongest overall.",
+      "favouriteWinRate": 47.9,
+      "sample": 1894,
+      "wins": 907,
+      "bestDraw": "Box 8",
+      "bestDrawRate": 18.5,
+      "rule": "Give the favourite strong weight at 366m. Use Box 8 and Box 6 as positive draw signals on the straight track.",
+      "distances": [
+        { "distance": "366m", "note": "907 wins from 1,894 unique favourites, 47.9%." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 8 won 18.5% and Box 6 won 15.2% of all runners; three joint-favourite races were excluded."
+    },
+    {
+      "name": "Mount Gambier",
+      "country": "AU",
+      "strategy": "A FOLLOW",
+      "grade": "A",
+      "headline": "Strong overall favourite signal, but 400m is weaker than 305m and 512m.",
+      "favouriteWinRate": 42.9,
+      "sample": 2665,
+      "wins": 1143,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 23.3,
+      "rule": "Follow price more confidently at 305m and 512m. At 400m, require stronger form and keep the major Box 1 advantage in view.",
+      "distances": [
+        { "distance": "305m", "note": "200 wins from 428 unique favourites, 46.7%." },
+        { "distance": "400m", "note": "570 wins from 1,428 unique favourites, 39.9%." },
+        { "distance": "512m", "note": "293 wins from 649 unique favourites, 45.1%." },
+        { "distance": "600m", "note": "50 wins from 112 unique favourites, 44.6%; smaller sample." },
+        { "distance": "732m", "note": "30 wins from 48 unique favourites, 62.5%; very small sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 23.3% of all runners; five joint-favourite races were excluded."
+    },
+    {
       "name": "Q1 Lakeside",
       "country": "AU",
       "strategy": "A FOLLOW",
@@ -589,6 +649,25 @@
         { "distance": "750m", "note": "5 wins from 9 unique favourites, 55.6%; very small sample." }
       ],
       "notes": "Betfair BSP archive, 1 January to 14 August 2026. Favourite traps: T1 39.1%, T3 37.3%, T6 34.3%, T5 33.5%, T4 33.0%, T2 32.8%. Six joint-favourite races excluded."
+    },
+    {
+      "name": "Yarmouth",
+      "country": "UK",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "C overall",
+      "headline": "Weaker favourite track at 462m; T2 leads and the 277m profile is stronger.",
+      "favouriteWinRate": 36.1,
+      "sample": 1386,
+      "wins": 501,
+      "bestDraw": "T2",
+      "bestDrawRate": 41.2,
+      "rule": "Be cautious following price at 462m. Give T2 and the stronger 277m profile extra weight when form supports them.",
+      "distances": [
+        { "distance": "277m", "note": "79 wins from 178 unique favourites, 44.4%; smaller sample." },
+        { "distance": "462m", "note": "403 wins from 1,175 unique favourites, 34.3%." },
+        { "distance": "659m", "note": "19 wins from 32 unique favourites, 59.4%; very small sample." }
+      ],
+      "notes": "Betfair BSP archive, 1 January to 14 August 2026. Favourite traps: T2 41.2%, T6 39.4%, T1 37.1%, T3 35.3%, T4 35.1%, T5 29.3%. Two joint-favourite races excluded."
     },
     {
       "name": "Newcastle",
