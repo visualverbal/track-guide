@@ -9,6 +9,7 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 - `styles.css` controls layout and presentation.
 - `app.js` renders filters, card/table views, confidence labels, starred tracks and local browser notes.
 - `betfair.js` renders the delayed Live Check interface.
+- `manual.js` parses pasted racecards and compares price/draw signals with the guide.
 - `betfair_connector.py` securely connects the local interface to Betfair.
 - `start-betfair.cmd` launches the local interface on Windows.
 
@@ -23,6 +24,18 @@ The Betfair API does not allow direct browser requests. Live Check therefore use
 The connector sends the login directly to Betfair over HTTPS. It never writes the username, password, app key or session token to disk. Closing the connector window clears the in-memory session. The connector exposes only market discovery and price reads; it contains no bet-placement operation.
 
 The public GitHub Pages site cannot access a connector on the private loopback network because of browser security controls. Use the local URL opened by `start-betfair.cmd` for Live Check; the public site remains available for the standard track guide.
+
+## Manual Check
+
+Manual Check runs entirely in the browser and does not need Betfair or the local connector. Select a track and paste one runner per line using a box/trap number, dog name and optional decimal or fractional odds. Examples:
+
+```text
+1 Rapid Echo 2.80
+Box 2 Blue Lantern 4.20
+T3 Final Turn 5/1
+```
+
+The parsed names and odds remain editable. The checker identifies the favourite or joint favourites, highlights the guide's strongest draw and shows any stored distance-specific note. The current version compares race price/draw information with track-level statistics; it does not yet contain dog-level historical form.
 
 ## Data Basis
 

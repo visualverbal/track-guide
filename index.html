@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0f14">
   <title>Greyhound Track Guide</title>
-  <link rel="stylesheet" href="styles.css?v=20260815c">
+  <link rel="stylesheet" href="styles.css?v=20260815d">
 </head>
 <body>
   <header class="topbar">
@@ -29,6 +29,7 @@
   <main>
     <nav class="mode-tabs" id="modeTabs" aria-label="Guide section">
       <button type="button" class="active" data-mode="guide" aria-pressed="true">Track guide</button>
+      <button type="button" data-mode="manual" aria-pressed="false">Manual check</button>
       <button type="button" data-mode="live" aria-pressed="false">Live check</button>
     </nav>
 
@@ -94,6 +95,46 @@
         <tbody id="trackTableBody"></tbody>
       </table>
     </div>
+    </section>
+
+    <section class="manual-view" id="manualView" hidden>
+      <div class="manual-toolbar">
+        <div>
+          <p class="eyebrow">No connection required</p>
+          <h2>Manual Race Check</h2>
+        </div>
+        <span class="local-status">Stored on this device</span>
+      </div>
+
+      <div class="manual-workspace">
+        <form class="manual-entry" id="manualForm">
+          <div class="manual-fields">
+            <label>
+              <span>Track</span>
+              <select id="manualTrack" required>
+                <option value="">Select track</option>
+              </select>
+            </label>
+            <label>
+              <span>Distance</span>
+              <input id="manualDistance" type="text" inputmode="numeric" placeholder="450m" autocomplete="off">
+            </label>
+          </div>
+          <label class="manual-racecard">
+            <span>Racecard</span>
+            <textarea id="manualRacecard" rows="12" placeholder="1 Rapid Echo 2.80&#10;2 Blue Lantern 4.20&#10;3 Final Turn 6.00" required></textarea>
+          </label>
+          <p class="manual-message" id="manualMessage" role="status"></p>
+          <div class="manual-actions">
+            <button class="secondary-button" id="clearManual" type="button">Clear</button>
+            <button class="primary-button" type="submit">Check race</button>
+          </div>
+        </form>
+
+        <section class="manual-results" id="manualResults" aria-live="polite">
+          <div class="race-empty">Paste a racecard to compare its runners with the track guide.</div>
+        </section>
+      </div>
     </section>
 
     <section class="live-view" id="liveView" hidden>
@@ -199,7 +240,8 @@
     </article>
   </template>
 
-  <script src="app.js?v=20260815c"></script>
-  <script src="betfair.js?v=20260815c"></script>
+  <script src="app.js?v=20260815d"></script>
+  <script src="betfair.js?v=20260815d"></script>
+  <script src="manual.js?v=20260815d"></script>
 </body>
 </html>

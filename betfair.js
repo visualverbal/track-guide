@@ -18,6 +18,7 @@
   const liveEls = {
     modeTabs: document.querySelector("#modeTabs"),
     guideView: document.querySelector("#guideView"),
+    manualView: document.querySelector("#manualView"),
     liveView: document.querySelector("#liveView"),
     connectionStatus: document.querySelector("#connectionStatus"),
     connect: document.querySelector("#connectBetfair"),
@@ -64,10 +65,11 @@
   }
 
   function setMode(mode, persist = true) {
-    liveState.mode = mode === "live" ? "live" : "guide";
+    liveState.mode = ["guide", "manual", "live"].includes(mode) ? mode : "guide";
     if (persist) localStorage.setItem("greyhoundGuide.mode", liveState.mode);
     const showLive = liveState.mode === "live";
-    liveEls.guideView.hidden = showLive;
+    liveEls.guideView.hidden = liveState.mode !== "guide";
+    liveEls.manualView.hidden = liveState.mode !== "manual";
     liveEls.liveView.hidden = !showLive;
     liveEls.modeTabs.querySelectorAll("button").forEach((button) => {
       const active = button.dataset.mode === liveState.mode;
