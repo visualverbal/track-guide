@@ -63,6 +63,7 @@
     "Taree": "auBetfair",
     "Ballarat": "auBetfair",
     "The Meadows": "auBetfair",
+    "The Gardens": "auBetfair",
     "Dubbo": "auBetfair",
     "Parklands": "auNew",
     "Q1 Lakeside": "auNew",
@@ -452,6 +453,27 @@
         { "distance": "730m", "note": "45 wins from 90 unique favourites, 50.0%; smaller sample." }
       ],
       "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 20.5% of all runners; five joint-favourite races were excluded."
+    },
+    {
+      "name": "The Gardens",
+      "country": "AU",
+      "strategy": "B / CHECK FORM",
+      "grade": "B",
+      "headline": "Distance matters; 515m and 600m outperform the shorter races.",
+      "favouriteWinRate": 40.1,
+      "sample": 3176,
+      "wins": 1273,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 19.0,
+      "rule": "Be selective with favourites at 272m and 400m. Give the market more weight at 515m and 600m, while checking form and draw.",
+      "distances": [
+        { "distance": "272m", "note": "75 wins from 193 unique favourites, 38.9%." },
+        { "distance": "400m", "note": "785 wins from 2,027 unique favourites, 38.7%." },
+        { "distance": "515m", "note": "328 wins from 773 unique favourites, 42.4%." },
+        { "distance": "600m", "note": "73 wins from 156 unique favourites, 46.8%; smaller sample." },
+        { "distance": "715m", "note": "12 wins from 27 unique favourites, 44.4%; very small sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 19.0% of all runners; six joint-favourite races were excluded."
     },
     {
       "name": "Q1 Lakeside",
