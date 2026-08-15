@@ -1,6 +1,3 @@
-Exit code: 0
-Wall time: 0.6 seconds
-Output:
 # Greyhound Track Guide
 
 Static GitHub Pages site for the greyhound track notes from the ChatGPT conversation.
@@ -49,4 +46,3 @@ Keep new entries in this shape:
 ```
 
 Use `null` only when a stat is genuinely unknown; the site displays it as `TBC`.
-
