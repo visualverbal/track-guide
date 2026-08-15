@@ -241,13 +241,23 @@
       return price && (!best || price < best.price) ? { id: runner.selectionId, price } : best;
     }, null);
 
-    const rows = runners.map((runner) => {
+    const rankedRunners = runners.map((runner) => {
       const priceData = prices.get(String(runner.selectionId)) || {};
       const back = bestBack(priceData);
       const lay = bestLay(priceData);
       const signal = runnerSignal(runner, favourite, guide);
+      return { runner, priceData, back, lay, signal };
+    }).sort((a, b) => {
+      const signalDifference = b.signal.priority - a.signal.priority;
+      if (signalDifference) return signalDifference;
+      const priceDifference = (a.back ?? Number.POSITIVE_INFINITY) - (b.back ?? Number.POSITIVE_INFINITY);
+      return priceDifference || a.runner.sortPriority - b.runner.sortPriority;
+    });
+
+    const rows = rankedRunners.map(({ runner, priceData, back, lay, signal }, index) => {
       return `
-        <tr>
+        <tr class="${index === 0 ? "priority-lead" : ""}">
+          <td><span class="priority-rank">${index + 1}</span></td>
           <td><span class="trap-number">${liveEscape(runner.sortPriority)}</span></td>
           <td><strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong></td>
           <td class="price-cell back-price">${priceText(back)}</td>
@@ -273,7 +283,7 @@
       ${guideContext(guide)}
       <div class="runner-table-wrap">
         <table class="runner-table">
-          <thead><tr><th>Trap</th><th>Greyhound</th><th>Back</th><th>Lay</th><th>Last</th><th>Matched</th><th>Signal</th></tr></thead>
+          <thead><tr><th>Priority</th><th>Trap</th><th>Greyhound</th><th>Back</th><th>Lay</th><th>Last</th><th>Matched</th><th>Signal</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -324,10 +334,10 @@
     const drawMatch = guide?.bestDraw?.match(/(?:Box|T)\s*(\d+)/i);
     const bestDraw = drawMatch && Number(drawMatch[1]) === Number(runner.sortPriority);
     const isFavourite = favourite && String(favourite.id) === String(runner.selectionId);
-    if (isFavourite && bestDraw) return { label: "Fav + draw", className: "strong" };
-    if (isFavourite) return { label: "Favourite", className: "favourite" };
-    if (bestDraw) return { label: "Best draw", className: "draw" };
-    return { label: "-", className: "neutral" };
+    if (isFavourite && bestDraw) return { label: "Fav + draw", className: "strong", priority: 3 };
+    if (isFavourite) return { label: "Favourite", className: "favourite", priority: 2 };
+    if (bestDraw) return { label: "Best draw", className: "draw", priority: 1 };
+    return { label: "Market price", className: "neutral", priority: 0 };
   }
 
   function bestBack(runner) {
