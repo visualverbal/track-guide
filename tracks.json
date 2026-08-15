@@ -322,6 +322,24 @@
       "notes": "Betfair BSP archive from the track's 2025 opening through 14 August 2026. Box 1 won 19.9% of all runners."
     },
     {
+      "name": "Taree",
+      "country": "AU",
+      "strategy": "B / CHECK FORM",
+      "grade": "B",
+      "headline": "Mixed overall signal; 525m was much stronger in a smaller sample.",
+      "favouriteWinRate": 38.5,
+      "sample": 766,
+      "wins": 295,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 18.7,
+      "rule": "Check distance before following price. Treat the strong 525m result cautiously because its sample is smaller.",
+      "distances": [
+        { "distance": "300m", "note": "167 wins from 444 unique favourites, 37.6%." },
+        { "distance": "525m", "note": "45 wins from 94 unique favourites, 47.9%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 18.7% of all runners."
+    },
+    {
       "name": "Sheffield",
       "country": "UK",
       "strategy": "TRAP-SPECIFIC",
