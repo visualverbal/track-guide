@@ -70,6 +70,7 @@
     "Sheffield": "ukBetfair",
     "Doncaster": "ukBetfair",
     "Monmore": "ukBetfair",
+    "Romford": "ukBetfair",
     "Newcastle": "ukGuide",
     "Towcester": "ukGuide",
     "Hove": "ukGuide",
@@ -568,6 +569,26 @@
         { "distance": "630m", "note": "62 wins from 136 unique favourites, 45.6%; smaller sample." }
       ],
       "notes": "Betfair BSP archive, 1 January to 14 August 2026. Favourite traps: T1 39.4%, T5 36.2%, T6 36.1%, T2 35.4%, T4 34.3%, T3 34.1%."
+    },
+    {
+      "name": "Romford",
+      "country": "UK",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "C overall",
+      "headline": "Lower favourite strike rate overall; T1 leads and 575m is stronger than 400m.",
+      "favouriteWinRate": 35.2,
+      "sample": 2213,
+      "wins": 780,
+      "bestDraw": "T1",
+      "bestDrawRate": 39.1,
+      "rule": "Treat T1 as the main draw positive. Be more selective with favourites over 400m; the 575m profile is stronger.",
+      "distances": [
+        { "distance": "225m", "note": "11 wins from 17 unique favourites, 64.7%; very small sample." },
+        { "distance": "400m", "note": "652 wins from 1,919 unique favourites, 34.0%." },
+        { "distance": "575m", "note": "112 wins from 268 unique favourites, 41.8%." },
+        { "distance": "750m", "note": "5 wins from 9 unique favourites, 55.6%; very small sample." }
+      ],
+      "notes": "Betfair BSP archive, 1 January to 14 August 2026. Favourite traps: T1 39.1%, T3 37.3%, T6 34.3%, T5 33.5%, T4 33.0%, T2 32.8%. Six joint-favourite races excluded."
     },
     {
       "name": "Newcastle",
