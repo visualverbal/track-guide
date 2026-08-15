@@ -8,6 +8,21 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 - `tracks.json` contains all track data, country grouping, strategy labels, source profiles and notes.
 - `styles.css` controls layout and presentation.
 - `app.js` renders filters, card/table views, confidence labels, starred tracks and local browser notes.
+- `betfair.js` renders the delayed Live Check interface.
+- `betfair_connector.py` securely connects the local interface to Betfair.
+- `start-betfair.cmd` launches the local interface on Windows.
+
+## Betfair Live Check
+
+The Betfair API does not allow direct browser requests. Live Check therefore uses a read-only connector bound to `127.0.0.1`; it cannot accept connections from other computers.
+
+1. Create a free Delayed App Key using the [Betfair Exchange getting-started guide](https://developer.betfair.com/get-started/exchange/).
+2. Double-click `start-betfair.cmd`.
+3. Open **Live check**, click **Connect**, and enter the delayed key and Betfair login.
+
+The connector sends the login directly to Betfair over HTTPS. It never writes the username, password, app key or session token to disk. Closing the connector window clears the in-memory session. The connector exposes only market discovery and price reads; it contains no bet-placement operation.
+
+The public GitHub Pages site cannot access a connector on the private loopback network because of browser security controls. Use the local URL opened by `start-betfair.cmd` for Live Check; the public site remains available for the standard track guide.
 
 ## Data Basis
 

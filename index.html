@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0f14">
   <title>Greyhound Track Guide</title>
-  <link rel="stylesheet" href="styles.css?v=20260815b">
+  <link rel="stylesheet" href="styles.css?v=20260815c">
 </head>
 <body>
   <header class="topbar">
@@ -27,6 +27,12 @@
   </header>
 
   <main>
+    <nav class="mode-tabs" id="modeTabs" aria-label="Guide section">
+      <button type="button" class="active" data-mode="guide" aria-pressed="true">Track guide</button>
+      <button type="button" data-mode="live" aria-pressed="false">Live check</button>
+    </nav>
+
+    <section id="guideView">
     <section class="controls" aria-label="Track filters">
       <div class="country-tabs" id="countryTabs"></div>
       <label class="search">
@@ -88,6 +94,85 @@
         <tbody id="trackTableBody"></tbody>
       </table>
     </div>
+    </section>
+
+    <section class="live-view" id="liveView" hidden>
+      <div class="live-toolbar">
+        <div>
+          <p class="eyebrow">Betfair delayed feed</p>
+          <h2>Live Race Check</h2>
+        </div>
+        <div class="live-actions">
+          <span class="connection-status offline" id="connectionStatus">Connector offline</span>
+          <button class="secondary-button" id="refreshMarkets" type="button" disabled>Refresh</button>
+          <button class="primary-button" id="connectBetfair" type="button">Connect</button>
+        </div>
+      </div>
+
+      <div class="connector-offline" id="connectorOffline">
+        <strong>Start the local Betfair connector</strong>
+        <span>The connection runs on this computer and keeps account details out of the public site.</span>
+        <a class="primary-button" href="http://127.0.0.1:8787/">Open local Track Guide</a>
+      </div>
+
+      <div class="live-workspace" id="liveWorkspace" hidden>
+        <aside class="race-browser" aria-label="Upcoming races">
+          <div class="race-browser-head">
+            <div>
+              <span class="eyebrow">Race window</span>
+              <select id="raceWindow" aria-label="Upcoming race window">
+                <option value="5">Next 5 min</option>
+                <option value="15">Next 15 min</option>
+                <option value="60">Next 60 min</option>
+              </select>
+            </div>
+            <span id="marketFreshness">Waiting</span>
+          </div>
+          <div class="race-list" id="raceList"></div>
+        </aside>
+
+        <section class="race-detail" id="raceDetail" aria-live="polite">
+          <div class="race-empty">Select an upcoming race.</div>
+        </section>
+      </div>
+    </section>
+
+    <dialog class="betfair-dialog" id="betfairDialog">
+      <form id="betfairForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Local connection</p>
+            <h2>Connect Betfair</h2>
+          </div>
+          <button class="dialog-close" type="button" id="closeBetfair" aria-label="Close">&times;</button>
+        </div>
+        <label class="dialog-field">
+          <span>Delayed app key</span>
+          <input name="appKey" type="password" autocomplete="off" required>
+        </label>
+        <label class="dialog-field">
+          <span>Betfair username</span>
+          <input name="username" type="text" autocomplete="username" required>
+        </label>
+        <label class="dialog-field">
+          <span>Password <small>append the 2FA code when enabled</small></span>
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <label class="dialog-field">
+          <span>Account region</span>
+          <select name="jurisdiction">
+            <option value="au">Australia / New Zealand</option>
+            <option value="global">United Kingdom / Ireland</option>
+          </select>
+        </label>
+        <p class="security-note">Your password is sent directly to Betfair by the local connector and is never saved.</p>
+        <p class="form-error" id="betfairError" role="alert"></p>
+        <div class="dialog-actions">
+          <a href="https://developer.betfair.com/get-started/exchange/" target="_blank" rel="noreferrer">Get a delayed key</a>
+          <button class="primary-button" type="submit">Connect</button>
+        </div>
+      </form>
+    </dialog>
   </main>
 
   <template id="trackTemplate">
@@ -114,6 +199,7 @@
     </article>
   </template>
 
-  <script src="app.js?v=20260815b"></script>
+  <script src="app.js?v=20260815c"></script>
+  <script src="betfair.js?v=20260815c"></script>
 </body>
 </html>
