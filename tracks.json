@@ -1,5 +1,8 @@
+Exit code: 0
+Wall time: 0.6 seconds
+Output:
 {
-  "updated": "2026-08-14",
+  "updated": "2026-08-15",
   "countries": [
     { "code": "AU", "name": "Australia" },
     { "code": "UK", "name": "United Kingdom" },
@@ -24,14 +27,14 @@
       "favouriteWinRate": 43.8,
       "sample": 573,
       "wins": 251,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 18.3,
       "rule": "Follow the market more confidently at 515m; still downgrade poor draws when a close-priced inside runner exists.",
       "distances": [
         { "distance": "515m", "note": "251 wins from 573 favourites, 43.8%." },
         { "distance": "603m", "note": "47.5% noted as tempting, but smaller sample than 515m." }
       ],
-      "notes": "One of the strongest large-sample AU favourite strike-rate tracks from the earlier analysis."
+      "notes": "One of the strongest large-sample AU favourite strike-rate tracks from the earlier analysis. Box 1 won 18.3% of all Betfair-sampled runners from 2022 to May 2025."
     },
     {
       "name": "Angle Park",
@@ -42,13 +45,13 @@
       "favouriteWinRate": 43.6,
       "sample": 2210,
       "wins": 963,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 22.8,
       "rule": "Use favourite price as a strong signal at 530m, but avoid treating strike-rate as profit.",
       "distances": [
         { "distance": "530m", "note": "963 wins from 2,210 favourites, 43.6%." }
       ],
-      "notes": "Earlier note changed from 'bad rate' to accurate favourite, but poor blind-bet value warning."
+      "notes": "Earlier note changed from 'bad rate' to accurate favourite, but poor blind-bet value warning. Box 1 won 22.8% of all Betfair-sampled runners."
     },
     {
       "name": "Darwin",
@@ -59,13 +62,13 @@
       "favouriteWinRate": 43.4,
       "sample": 1115,
       "wins": 484,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 2",
+      "bestDrawRate": 18.4,
       "rule": "Follow price strongly at 312m unless the race setup gives a clear reason not to.",
       "distances": [
         { "distance": "312m", "note": "484 wins from 1,115 favourites, 43.4%." }
       ],
-      "notes": "Kept as FOLLOW $ from the original guide."
+      "notes": "Kept as FOLLOW $ from the original guide. Box 2 narrowly led all-runner box results at 18.4%."
     },
     {
       "name": "Mandurah",
@@ -76,14 +79,14 @@
       "favouriteWinRate": 42.1,
       "sample": 1384,
       "wins": 583,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 21.0,
       "rule": "Follow price at 400m; be more selective at longer distances.",
       "distances": [
         { "distance": "400m", "note": "583 wins from 1,384 favourites, 42.1%." },
         { "distance": "488m", "note": "Earlier note said weaker around 40.0%." }
       ],
-      "notes": "Kept as FOLLOW $ with distance warning."
+      "notes": "Kept as FOLLOW $ with distance warning. Box 1 won 21.0% of all Betfair-sampled runners."
     },
     {
       "name": "Launceston",
@@ -94,13 +97,13 @@
       "favouriteWinRate": 42.0,
       "sample": 1465,
       "wins": 616,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 21.0,
       "rule": "Use favourite price as a strong signal at 278m.",
       "distances": [
         { "distance": "278m", "note": "616 wins from 1,465 favourites, 42.0%." }
       ],
-      "notes": "Earlier conversation explicitly upgraded Launceston."
+      "notes": "Earlier conversation explicitly upgraded Launceston. Box 1 won 21.0% of all Betfair-sampled runners."
     },
     {
       "name": "Wentworth Park",
@@ -111,15 +114,15 @@
       "favouriteWinRate": 41.9,
       "sample": 3345,
       "wins": 1401,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 18.7,
       "rule": "Follow price at 520m; do not apply the same rule blindly at 280m.",
       "distances": [
         { "distance": "520m", "note": "1,401 wins from 3,345 favourites, 41.9%." },
         { "distance": "720m", "note": "47.0%, but smaller sample of 198." },
         { "distance": "280m", "note": "Weak at 35.9%; distance matters." }
       ],
-      "notes": "Keep the site warning prominent because the old broad 'great follow rate' note was too broad."
+      "notes": "Keep the site warning prominent because the old broad 'great follow rate' note was too broad. Box 1 led all-runner box results at 18.7%."
     },
     {
       "name": "Sandown Park",
@@ -130,13 +133,13 @@
       "favouriteWinRate": 41.9,
       "sample": 821,
       "wins": 344,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 23.4,
       "rule": "Follow price at 595m, with normal draw/form checks.",
       "distances": [
         { "distance": "595m", "note": "344 wins from 821 favourites, 41.9%." }
       ],
-      "notes": "Included from the AU ranking."
+      "notes": "Included from the AU ranking. Box 1 won 23.4% of all Betfair-sampled runners."
     },
     {
       "name": "Cannington",
@@ -147,14 +150,14 @@
       "favouriteWinRate": 40.7,
       "sample": 1822,
       "wins": 741,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 21.0,
       "rule": "Use price plus form; do not treat as top-tier favourite-follow.",
       "distances": [
         { "distance": "520m", "note": "741 wins from 1,822 favourites, 40.7%." },
         { "distance": "600m", "note": "42.8% from smaller 278 sample." }
       ],
-      "notes": "Classified as B+ / check form."
+      "notes": "Classified as B+ / check form. Box 1 won 21.0% of all Betfair-sampled runners."
     },
     {
       "name": "Bendigo",
@@ -183,119 +186,143 @@
       "favouriteWinRate": 34.6,
       "sample": 3098,
       "wins": 1072,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 17.8,
       "rule": "Do not blindly follow the dollar at 400m; trap/form should carry more weight.",
       "distances": [
         { "distance": "400m", "note": "1,072 wins from 3,098 favourites, 34.6%." },
         { "distance": "680m", "note": "45.3%, but only 53 favourites; do not overrate it." }
       ],
-      "notes": "Explicitly downgraded in the previous analysis."
+      "notes": "Explicitly downgraded in the previous analysis. Box 1 still led all-runner box results at 17.8%."
     },
     {
       "name": "Richmond (Loop)",
       "country": "AU",
-      "strategy": "BOX + $",
-      "grade": "?",
-      "headline": "Loop/circle track only; Richmond Straight removed.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Treat as Richmond's loop/circle track. Do not mix with the separate 324m straight course.",
-      "distances": [],
-      "notes": "User corrected the guide: it is not Richmond Straight, it is the loop."
+      "strategy": "A+ FOLLOW",
+      "grade": "A+",
+      "headline": "Strong loop-track favourite rate; straight-course races excluded.",
+      "favouriteWinRate": 43.4,
+      "sample": 4051,
+      "wins": 1759,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 20.4,
+      "rule": "Follow price on the loop with normal box checks. Do not mix in the separate 324m straight course.",
+      "distances": [
+        { "distance": "320m", "note": "735 wins from 1,748 unique favourites, 42.0%." },
+        { "distance": "401m", "note": "627 wins from 1,444 unique favourites, 43.4%." },
+        { "distance": "520m", "note": "309 wins from 672 unique favourites, 46.0%." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. The 324m straight-course sample was excluded; Box 1 won 20.4% of all loop runners."
     },
     {
       "name": "Geelong",
       "country": "AU",
-      "strategy": "RESEARCH",
-      "grade": "?",
-      "headline": "Added as provisional pending direct race-level calculation.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Keep provisional until favourite-by-box and distance stats are calculated.",
-      "distances": [],
-      "notes": "Added when the HTML guide was first created."
+      "strategy": "B / CHECK FORM",
+      "grade": "B+",
+      "headline": "Solid overall signal, with 460m stronger than 400m.",
+      "favouriteWinRate": 40.6,
+      "sample": 3201,
+      "wins": 1300,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 15.7,
+      "rule": "Use price with form; the favourite signal improves at 460m.",
+      "distances": [
+        { "distance": "400m", "note": "781 wins from 1,990 unique favourites, 39.2%." },
+        { "distance": "460m", "note": "472 wins from 1,097 unique favourites, 43.0%." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 led all-runner results at 15.7%."
     },
     {
       "name": "Townsville",
       "country": "AU",
       "strategy": "BOX + $",
-      "grade": "?",
-      "headline": "Trap/form may matter more than price alone.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
+      "grade": "C",
+      "headline": "Weak favourite track; draw and form matter more than price alone.",
+      "favouriteWinRate": 35.0,
+      "sample": 2377,
+      "wins": 833,
+      "bestDraw": "Box 2",
+      "bestDrawRate": 15.7,
       "rule": "Do not blindly follow the favourite; prefer shorter-priced runners with a useful draw/form setup.",
-      "distances": [],
-      "notes": "Original note: trap/form over dollar."
+      "distances": [
+        { "distance": "380m", "note": "637 wins from 1,847 unique favourites, 34.5%." },
+        { "distance": "498m", "note": "187 wins from 508 unique favourites, 36.8%." }
+      ],
+      "notes": "Original note retained: trap/form over dollar. Betfair BSP archive, January 2022 to May 2025; Box 2 led all-runner results at 15.7%."
     },
     {
       "name": "Wagga",
       "country": "AU",
-      "strategy": "RESEARCH",
-      "grade": "?",
-      "headline": "Keep provisional.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Needs raw race-level favourite and box history before assigning a grade.",
-      "distances": [],
-      "notes": "Kept provisional in prior analysis."
+      "strategy": "B / CHECK FORM",
+      "grade": "B",
+      "headline": "Mixed overall signal; 320m and 525m outperform 400m.",
+      "favouriteWinRate": 39.9,
+      "sample": 1417,
+      "wins": 565,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 19.9,
+      "rule": "Check distance before following price; be cautious at 400m.",
+      "distances": [
+        { "distance": "320m", "note": "350 wins from 839 unique favourites, 41.7%." },
+        { "distance": "400m", "note": "137 wins from 396 unique favourites, 34.6%." },
+        { "distance": "525m", "note": "78 wins from 182 unique favourites, 42.9%." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 19.9% of all runners."
     },
     {
       "name": "Warrnambool",
       "country": "AU",
-      "strategy": "RESEARCH",
-      "grade": "?",
-      "headline": "Keep provisional.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Needs raw race-level favourite and box history before assigning a grade.",
-      "distances": [],
-      "notes": "Kept provisional in prior analysis."
+      "strategy": "B / CHECK FORM",
+      "grade": "B+",
+      "headline": "Borderline follow track, with 450m stronger than 390m.",
+      "favouriteWinRate": 40.2,
+      "sample": 2697,
+      "wins": 1085,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 18.9,
+      "rule": "Use price with form and prefer the stronger 450m profile.",
+      "distances": [
+        { "distance": "390m", "note": "703 wins from 1,773 unique favourites, 39.7%." },
+        { "distance": "450m", "note": "370 wins from 896 unique favourites, 41.3%." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 18.9% of all runners."
     },
     {
       "name": "Grafton",
       "country": "AU",
-      "strategy": "RESEARCH",
-      "grade": "?",
-      "headline": "Keep provisional.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Needs raw race-level favourite and box history before assigning a grade.",
-      "distances": [],
-      "notes": "Kept provisional in prior analysis."
+      "strategy": "A+ FOLLOW",
+      "grade": "A+",
+      "headline": "Strong favourite signal, especially at 450m.",
+      "favouriteWinRate": 43.4,
+      "sample": 1879,
+      "wins": 816,
+      "bestDraw": "Box 8",
+      "bestDrawRate": 15.8,
+      "rule": "Follow price more confidently at 450m; keep normal checks at 350m.",
+      "distances": [
+        { "distance": "350m", "note": "546 wins from 1,310 unique favourites, 41.7%." },
+        { "distance": "450m", "note": "253 wins from 539 unique favourites, 46.9%." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 8 narrowly led all-runner results at 15.8%."
     },
     {
       "name": "Parklands",
       "country": "AU",
-      "strategy": "RESEARCH",
-      "grade": "?",
-      "headline": "New track; not enough long history.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Do not mark as bad rate yet; sample history is too young.",
-      "distances": [],
-      "notes": "Q2 Parklands debuted in 2025, so it remains research-only."
+      "strategy": "A FOLLOW",
+      "grade": "A",
+      "headline": "Promising early favourite signal, with a shorter history than established tracks.",
+      "favouriteWinRate": 42.1,
+      "sample": 1254,
+      "wins": 528,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 19.9,
+      "rule": "Follow price with normal checks, but keep the shorter operating history in mind.",
+      "distances": [
+        { "distance": "520m", "note": "379 wins from 923 unique favourites, 41.1%." },
+        { "distance": "600m", "note": "97 wins from 223 unique favourites, 43.5%." },
+        { "distance": "710m", "note": "52 wins from 108 unique favourites, 48.1%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive from the track's 2025 opening through 14 August 2026. Box 1 won 19.9% of all runners."
     },
     {
       "name": "Sheffield",
@@ -303,16 +330,16 @@
       "strategy": "TRAP-SPECIFIC",
       "grade": "C overall",
       "headline": "Trap draw is a big factor; T5/T3 strongest for favourites.",
-      "favouriteWinRate": 38.8,
-      "sample": null,
-      "wins": null,
+      "favouriteWinRate": 39.3,
+      "sample": 1504,
+      "wins": 591,
       "bestDraw": "T5",
-      "bestDrawRate": 47.9,
-      "rule": "Do not use lower trap = better here. T5 and T3 were strongest in the 2026 favourite-by-trap numbers.",
+      "bestDrawRate": 49.7,
+      "rule": "Do not use lower trap = better here. T5 was strongest in the refreshed 2026 favourite-by-trap numbers.",
       "distances": [
         { "distance": "500m", "note": "Sequence start noted in the user's working sheet." }
       ],
-      "notes": "Earlier numbers: T5 47.9%, T3 43.0%, T4 40.9%, T2 36.7%, T1 36.3%, T6 31.4%."
+      "notes": "Betfair BSP archive, 1 January to 14 August 2026. The earlier snapshot was 38.8% overall with T5 at 47.9%."
     },
     {
       "name": "Newcastle",
@@ -437,47 +464,48 @@
     {
       "name": "Tralee",
       "country": "IRE",
-      "strategy": "BOX + $",
-      "grade": "?",
-      "headline": "Trap draw is a big factor in the user's notes.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Use market price plus inside/favourable draw. Needs Irish race-level favourite-by-trap calculation.",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "C overall",
+      "headline": "Favourite draw matters; T5 was strongest in 2026.",
+      "favouriteWinRate": 36.9,
+      "sample": 664,
+      "wins": 245,
+      "bestDraw": "T5",
+      "bestDrawRate": 44.2,
+      "rule": "Use price plus trap. T5 favourites outperformed the track average; T1 and T2 were weaker.",
       "distances": [],
-      "notes": "Original working note: Trap draw = big factor."
+      "notes": "Greyhound Racing Ireland official results, 1 January to 14 August 2026; joint favourites excluded. Original working note retained: trap draw is a big factor."
     },
     {
       "name": "Waterford",
       "country": "IRE",
-      "strategy": "RESEARCH",
-      "grade": "?",
-      "headline": "Needs Irish favourite dataset.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Keep provisional until Irish favourite and trap data is calculated.",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "C overall",
+      "headline": "Weak overall favourite rate, but T3 favourites performed well.",
+      "favouriteWinRate": 31.0,
+      "sample": 426,
+      "wins": 132,
+      "bestDraw": "T3",
+      "bestDrawRate": 41.1,
+      "rule": "Do not follow price alone. Give extra weight to T3 and be cautious with T5/T6 favourites.",
       "distances": [],
-      "notes": "Mentioned in the original list as needing data."
+      "notes": "Greyhound Racing Ireland official results, 1 January to 14 August 2026; joint favourites excluded."
     },
     {
       "name": "Mullingar",
       "country": "IRE",
-      "strategy": "RESEARCH",
-      "grade": "?",
-      "headline": "Price plus draw research target.",
-      "favouriteWinRate": null,
-      "sample": null,
-      "wins": null,
-      "bestDraw": null,
-      "bestDrawRate": null,
-      "rule": "Next useful stat: when the favourite is wide, how often does a similarly priced inside dog beat it?",
+      "strategy": "TRAP-SPECIFIC",
+      "grade": "C overall",
+      "headline": "T3 favourites were strongest; T6 was clearly weakest.",
+      "favouriteWinRate": 36.5,
+      "sample": 647,
+      "wins": 236,
+      "bestDraw": "T3",
+      "bestDrawRate": 43.8,
+      "rule": "Use price plus draw. Prefer T3 setups and downgrade wide T6 favourites when prices are close.",
       "distances": [],
-      "notes": "Added under Ireland. Greyhound Racing Ireland publishes results with trap numbers and starting prices, so this can be calculated later."
+      "notes": "Greyhound Racing Ireland official results, 1 January to 14 August 2026; joint favourites excluded."
     }
   ]
 }
+
