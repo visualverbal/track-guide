@@ -54,7 +54,7 @@
     });
 
     try {
-      const data = await fetch("tracks.json").then((response) => response.json());
+      const data = await fetch("tracks.json", { cache: "no-store" }).then((response) => response.json());
       liveState.tracks = data.tracks || [];
     } catch (_error) {
       liveState.tracks = [];
@@ -104,310 +104,137 @@
       liveEls.workspace.hidden = true;
     } else if (!liveState.connected) {
       liveEls.connectionStatus.textContent = "Not connected";
-      liveEls.connect.textContent = "Connect";
-      liveEls.connectorOffline.hidden = true;
-      liveEls.workspace.hidden = true;
-    } else {
-      liveEls.connectionStatus.textContent = liveState.demo ? "Demo connected" : "Delayed feed connected";
-      liveEls.connect.textContent = "Disconnect";
-      liveEls.connectorOffline.hidden = true;
-      liveEls.workspace.hidden = false;
-    }
-    liveEls.refresh.disabled = !liveState.connected;
-  }
-
-  async function handleConnectButton() {
-    if (!liveState.connectorOnline) {
-      window.location.href = "http://127.0.0.1:8787/";
-      return;
-    }
-    if (!liveState.connected) {
-      liveEls.error.textContent = "";
-      liveEls.dialog.showModal();
-      return;
-    }
-    await api("/api/betfair/logout", { method: "POST", body: "{}" });
-    liveState.connected = false;
-    liveState.markets = [];
-    liveState.selectedMarketId = null;
-    stopBookPolling();
-    updateConnectionUi();
-  }
-
-  async function login(event) {
-    event.preventDefault();
-    liveEls.error.textContent = "";
-    const submit = liveEls.form.querySelector('button[type="submit"]');
-    const formData = new FormData(liveEls.form);
-    const payload = Object.fromEntries(formData.entries());
-    liveEls.form.elements.password.value = "";
-    submit.disabled = true;
-    submit.textContent = "Connecting...";
-    try {
-      const status = await api("/api/betfair/login", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      liveState.connected = status.connected;
-      liveState.demo = status.demo;
-      liveEls.dialog.close();
-      updateConnectionUi();
-      await loadMarkets();
-    } catch (error) {
-      liveEls.error.textContent = error.message;
-    } finally {
-      submit.disabled = false;
-      submit.textContent = "Connect";
-    }
-  }
-
-  async function loadMarkets() {
-    if (!liveState.connected) return;
-    liveEls.refresh.disabled = true;
-    liveEls.marketFreshness.textContent = "Refreshing...";
-    try {
-      const minutes = liveEls.raceWindow.value;
-      const data = await api(`/api/betfair/markets?minutes=${minutes}`);
-      const now = Date.now() - 60_000;
-      liveState.markets = (data.markets || []).filter((market) => Date.parse(market.marketStartTime) >= now);
-      liveEls.marketFreshness.textContent = `Updated ${formatTime(data.fetchedAt)}`;
-      renderMarketList();
-      const current = liveState.markets.find((market) => market.marketId === liveState.selectedMarketId);
-      if (current) {
-        await selectMarket(current.marketId);
-      } else if (liveState.markets.length) {
-        await selectMarket(liveState.markets[0].marketId);
-      } else {
-        liveState.selectedMarketId = null;
-        stopBookPolling();
-        liveEls.raceDetail.innerHTML = '<div class="race-empty">No greyhound WIN markets in this window.</div>';
-      }
-    } catch (error) {
-      liveEls.marketFreshness.textContent = "Update failed";
-      liveEls.raceList.innerHTML = `<div class="race-empty">${liveEscape(error.message)}</div>`;
-    } finally {
-      liveEls.refresh.disabled = !liveState.connected;
-    }
-  }
-
-  function renderMarketList() {
-    if (!liveState.markets.length) {
-      liveEls.raceList.innerHTML = '<div class="race-empty compact">No races found.</div>';
-      return;
-    }
-    liveEls.raceList.innerHTML = liveState.markets.map((market) => {
-      const selected = market.marketId === liveState.selectedMarketId;
-      const venue = market.event?.venue || market.event?.name || "Greyhounds";
-      return `
-        <button type="button" class="race-list-item${selected ? " active" : ""}" data-market-id="${liveEscape(market.marketId)}">
-          <span class="race-list-top"><strong>${liveEscape(venue)}</strong><time>${formatTime(market.marketStartTime)}</time></span>
-          <span>${liveEscape(market.marketName)}</span>
-          <span class="race-countdown" data-start="${liveEscape(market.marketStartTime)}">${countdown(market.marketStartTime)}</span>
-        </button>
-      `;
-    }).join("");
-  }
-
-  async function selectMarket(marketId) {
-    const market = liveState.markets.find((item) => item.marketId === marketId);
-    if (!market) return;
-    liveState.selectedMarketId = marketId;
-    renderMarketList();
-    liveEls.raceDetail.innerHTML = '<div class="race-empty">Loading market...</div>';
-    stopBookPolling();
-    await loadMarketBook();
-    liveState.bookTimer = window.setInterval(loadMarketBook, 20_000);
-  }
-
-  async function loadMarketBook() {
-    const market = liveState.markets.find((item) => item.marketId === liveState.selectedMarketId);
-    if (!market || !liveState.connected) return;
-    try {
-      const query = new URLSearchParams({ marketId: market.marketId, exchange: market.exchange });
-      const data = await api(`/api/betfair/market?${query}`);
-      renderMarket(market, data.book, data.fetchedAt);
-    } catch (error) {
-      liveEls.raceDetail.innerHTML = `<div class="race-empty">${liveEscape(error.message)}</div>`;
-    }
-  }
-
-  function renderMarket(market, book, fetchedAt) {
-    const venue = market.event?.venue || market.event?.name || "Greyhounds";
-    const guide = findGuideTrack(venue);
-    const prices = new Map((book.runners || []).map((runner) => [String(runner.selectionId), runner]));
-    const runners = [...(market.runners || [])].sort((a, b) => a.sortPriority - b.sortPriority);
-    const favourite = runners.reduce((best, runner) => {
-      const price = bestBack(prices.get(String(runner.selectionId)));
-      return price && (!best || price < best.price) ? { id: runner.selectionId, price } : best;
-    }, null);
-
-    const rankedRunners = runners.map((runner) => {
-      const priceData = prices.get(String(runner.selectionId)) || {};
-      const back = bestBack(priceData);
-      const lay = bestLay(priceData);
-      const signal = runnerSignal(runner, favourite, guide);
-      return { runner, priceData, back, lay, signal };
-    }).sort((a, b) => {
-      const signalDifference = b.signal.priority - a.signal.priority;
-      if (signalDifference) return signalDifference;
-      const priceDifference = (a.back ?? Number.POSITIVE_INFINITY) - (b.back ?? Number.POSITIVE_INFINITY);
-      return priceDifference || a.runner.sortPriority - b.runner.sortPriority;
-    });
-
-    const rows = rankedRunners.map(({ runner, priceData, back, lay, signal }, index) => {
-      return `
-        <tr class="${index === 0 ? "priority-lead" : ""}">
-          <td><span class="priority-rank">${index + 1}</span></td>
-          <td><span class="trap-number">${liveEscape(runner.sortPriority)}</span></td>
-          <td><strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong></td>
-          <td class="price-cell back-price">${priceText(back)}</td>
-          <td class="price-cell lay-price">${priceText(lay)}</td>
-          <td>${priceText(priceData.lastPriceTraded)}</td>
-          <td>${numberText(priceData.totalMatched)}</td>
-          <td><span class="runner-signal ${signal.className}">${signal.label}</span></td>
-        </tr>
-      `;
-    }).join("");
-
-    liveEls.raceDetail.innerHTML = `
-      <div class="race-detail-head">
-        <div>
-          <p class="eyebrow">${liveEscape(market.exchange.toUpperCase())} exchange | delayed</p>
-          <h2>${liveEscape(venue)} <span>${liveEscape(market.marketName)}</span></h2>
-        </div>
-        <div class="race-time-block">
-          <time>${formatTime(market.marketStartTime)}</time>
-          <strong data-start="${liveEscape(market.marketStartTime)}">${countdown(market.marketStartTime)}</strong>
-        </div>
+      liveEls.connect.textConte…5473 tokens truncated…e
       </div>
-      ${guideContext(guide)}
+      <div class="manual-guide-rule">
+        <strong>${manualEscape(distance.label)}</strong>
+        <span>${manualEscape(distance.note)}</span>
+        <p>${manualEscape(track.rule)}</p>
+      </div>
       <div class="runner-table-wrap">
-        <table class="runner-table">
-          <thead><tr><th>Priority</th><th>Trap</th><th>Greyhound</th><th>Back</th><th>Lay</th><th>Last</th><th>Matched</th><th>Signal</th></tr></thead>
+        <table class="runner-table manual-runner-table">
+          <thead><tr><th>Draw</th><th>Greyhound</th><th>Odds</th><th>Signal</th><th><span class="sr-only">Remove</span></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <div class="market-footer">
-        <span>Market ${liveEscape(book.status || "UNKNOWN")}${book.inplay ? " | In-play" : ""}</span>
-        <span>Fetched ${formatTime(fetchedAt)} | delayed data</span>
-      </div>
-      <p class="dog-history-note">Betfair supplies prices and runner names. Dog-level form will require importing the free historical files.</p>
+      <p class="dog-history-note">This check compares price and draw with the track guide. It does not yet include each dog's historical form.</p>
     `;
   }
 
-  function guideContext(guide) {
-    if (!guide) {
-      return '<div class="guide-context unavailable"><strong>Track guide unavailable</strong><span>No matching track entry was found.</span></div>';
+  function editRunner(event) {
+    const input = event.target.closest("[data-runner-draw][data-field]");
+    if (!input) return;
+    const runner = manualState.runners.find((item) => item.draw === Number(input.dataset.runnerDraw));
+    if (!runner) return;
+    if (input.dataset.field === "name") {
+      runner.name = input.value.trim() || runner.name;
+    } else {
+      const value = Number(input.value);
+      runner.odds = Number.isFinite(value) && value > 1 ? value : null;
     }
-    return `
-      <div class="guide-context">
-        <div><span>Guide</span><strong>${liveEscape(guide.strategy)}</strong></div>
-        <div><span>Favourite win</span><strong>${guide.favouriteWinRate.toFixed(1)}%</strong></div>
-        <div><span>Best draw</span><strong>${liveEscape(guide.bestDraw)} ${guide.bestDrawRate.toFixed(1)}%</strong></div>
-        <p>${liveEscape(guide.rule)}</p>
-      </div>
-    `;
+    renderManualResults();
+    saveManualState();
   }
 
-  function findGuideTrack(venue) {
-    const target = normalizeTrack(venue);
-    const aliases = {
-      richmond: "richmondloop",
-      monmoregreen: "monmore",
-      valley: "thevalley"
+  function removeRunner(event) {
+    const button = event.target.closest("button[data-remove-draw]");
+    if (!button) return;
+    manualState.runners = manualState.runners.filter((runner) => runner.draw !== Number(button.dataset.removeDraw));
+    manualEls.message.textContent = `${manualState.runners.length} runners remaining.`;
+    renderManualResults();
+    saveManualState();
+  }
+
+  function selectedTrack() {
+    return manualState.tracks.find((track) => track.name === manualEls.track.value) || null;
+  }
+
+  function favouriteFor(runners) {
+    const priced = runners.filter((runner) => Number.isFinite(runner.odds));
+    if (!priced.length) return { runners: [], odds: null };
+    const lowest = Math.min(...priced.map((runner) => runner.odds));
+    return { runners: priced.filter((runner) => runner.odds === lowest), odds: lowest };
+  }
+
+  function favouriteText(favourite) {
+    if (!favourite.runners.length) return "Odds required";
+    const names = favourite.runners.map((runner) => runner.name).join(" / ");
+    return `${names} @ ${favourite.odds.toFixed(2)}`;
+  }
+
+  function alignmentText(favourite, bestDraw) {
+    if (!favourite.runners.length) return "Waiting for odds";
+    if (!bestDraw) return "Use track rule";
+    const aligned = favourite.runners.some((runner) => runner.draw === bestDraw);
+    if (aligned && favourite.runners.length > 1) return "Joint favourite includes best draw";
+    if (aligned) return "Favourite and best draw align";
+    return "Favourite differs from best draw";
+  }
+
+  function manualSignal(runner, favourite, bestDraw) {
+    const isFavourite = favourite.runners.some((item) => item.draw === runner.draw);
+    const isBestDraw = bestDraw === runner.draw;
+    if (isFavourite && isBestDraw) return { label: "Fav + draw", className: "strong" };
+    if (isFavourite) return { label: favourite.runners.length > 1 ? "Joint fav" : "Favourite", className: "favourite" };
+    if (isBestDraw) return { label: "Best draw", className: "draw" };
+    return { label: "-", className: "neutral" };
+  }
+
+  function drawNumber(value) {
+    const match = String(value || "").match(/(?:Box|T)\s*(\d+)/i);
+    return match ? Number(match[1]) : null;
+  }
+
+  function distanceContext(track, value) {
+    const target = normalizeDistance(value);
+    if (!target) return { label: "All distances", note: track.headline };
+    const exact = (track.distances || []).find((item) => normalizeDistance(item.distance) === target);
+    if (exact) return { label: exact.distance, note: exact.note };
+    return { label: target, note: "No distance-specific split is stored; use the overall track figures." };
+  }
+
+  function normalizeDistance(value) {
+    const match = String(value || "").match(/(\d{2,4})/);
+    return match ? `${match[1]}m` : "";
+  }
+
+  function saveManualState() {
+    const payload = {
+      track: manualEls.track.value,
+      distance: manualEls.distance.value,
+      racecard: manualEls.racecard.value,
+      runners: manualState.runners
     };
-    const expected = aliases[target] || target;
-    return liveState.tracks.find((track) => {
-      const name = normalizeTrack(track.name);
-      return name === expected || name.includes(expected) || expected.includes(name);
-    }) || null;
+    localStorage.setItem(storageKey, JSON.stringify(payload));
   }
 
-  function normalizeTrack(value) {
-    return String(value || "")
-      .toLowerCase()
-      .replace(/greyhounds?|dogs?/g, "")
-      .replace(/[^a-z0-9]+/g, "");
-  }
-
-  function runnerSignal(runner, favourite, guide) {
-    const drawMatch = guide?.bestDraw?.match(/(?:Box|T)\s*(\d+)/i);
-    const bestDraw = drawMatch && Number(drawMatch[1]) === Number(runner.sortPriority);
-    const isFavourite = favourite && String(favourite.id) === String(runner.selectionId);
-    if (isFavourite && bestDraw) return { label: "Fav + draw", className: "strong", priority: 3 };
-    if (isFavourite) return { label: "Favourite", className: "favourite", priority: 2 };
-    if (bestDraw) return { label: "Best draw", className: "draw", priority: 1 };
-    return { label: "Market price", className: "neutral", priority: 0 };
-  }
-
-  function bestBack(runner) {
-    return runner?.ex?.availableToBack?.[0]?.price || null;
-  }
-
-  function bestLay(runner) {
-    return runner?.ex?.availableToLay?.[0]?.price || null;
-  }
-
-  function cleanRunnerName(name) {
-    return String(name || "").replace(/^\d+\.\s*/, "");
-  }
-
-  function priceText(value) {
-    return Number.isFinite(value) ? Number(value).toFixed(2) : "-";
-  }
-
-  function numberText(value) {
-    return Number.isFinite(value) ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-";
-  }
-
-  function formatTime(value) {
-    const date = new Date(value);
-    return Number.isNaN(date.valueOf()) ? "-" : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  }
-
-  function countdown(value) {
-    const difference = Date.parse(value) - Date.now();
-    if (!Number.isFinite(difference)) return "-";
-    if (difference <= -60_000) return "Started";
-    if (difference <= 0) return "Due now";
-    const totalSeconds = Math.ceil(difference / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${String(seconds).padStart(2, "0")}`;
-  }
-
-  function updateCountdowns() {
-    document.querySelectorAll("[data-start]").forEach((element) => {
-      element.textContent = countdown(element.dataset.start);
-    });
-  }
-
-  function stopBookPolling() {
-    if (liveState.bookTimer) window.clearInterval(liveState.bookTimer);
-    liveState.bookTimer = null;
-  }
-
-  async function api(path, options = {}) {
-    let response;
+  function restoreManualState() {
+    let saved = null;
     try {
-      response = await fetch(`${connectorOrigin}${path}`, {
-        ...options,
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) }
-      });
+      saved = JSON.parse(localStorage.getItem(storageKey) || "null");
     } catch (_error) {
-      throw new Error("Local connector is not running.");
+      localStorage.removeItem(storageKey);
     }
-    let payload = {};
-    try {
-      payload = await response.json();
-    } catch (_error) {
-      throw new Error("Connector returned an invalid response.");
+    if (!saved) return;
+    manualEls.track.value = saved.track || "";
+    manualEls.distance.value = saved.distance || "";
+    manualEls.racecard.value = saved.racecard || "";
+    manualState.runners = Array.isArray(saved.runners) ? saved.runners : [];
+    if (manualState.runners.length >= 2 && selectedTrack()) {
+      manualEls.message.textContent = `${manualState.runners.length} runners restored.`;
+      renderManualResults();
     }
-    if (!response.ok) throw new Error(payload.error || `Connector error ${response.status}`);
-    return payload;
   }
 
-  function liveEscape(value) {
+  function clearRace() {
+    manualEls.form.reset();
+    manualState.runners = [];
+    manualEls.message.textContent = "";
+    manualEls.results.innerHTML = '<div class="race-empty">Paste a racecard to compare its runners with the track guide.</div>';
+    localStorage.removeItem(storageKey);
+  }
+
+  function manualEscape(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")

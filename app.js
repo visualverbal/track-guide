@@ -37,7 +37,7 @@ els.themeToggle.addEventListener("click", () => {
   applyTheme();
 });
 
-fetch("tracks.json")
+fetch("tracks.json", { cache: "no-store" })
   .then((response) => {
     if (!response.ok) throw new Error("Could not load tracks.json");
     return response.json();

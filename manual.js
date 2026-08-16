@@ -25,7 +25,7 @@
     manualEls.results.addEventListener("click", removeRunner);
 
     try {
-      const data = await fetch("tracks.json").then((response) => response.json());
+      const data = await fetch("tracks.json", { cache: "no-store" }).then((response) => response.json());
       manualState.tracks = data.tracks || [];
       populateTracks();
       restoreManualState();
