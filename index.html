@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0f14">
-  <title>Greyhound Track Guide</title>
-  <link rel="stylesheet" href="styles.css?v=20260815d">
+  <title>Greyhound Track &amp; Value Guide</title>
+  <link rel="stylesheet" href="styles.css?v=20260816e">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">TG</div>
       <div>
-        <p class="eyebrow">Race-day reference</p>
-        <h1>Greyhound Track Guide</h1>
+        <p class="eyebrow">Price-led race assessment</p>
+        <h1>Greyhound Track &amp; Value Guide</h1>
       </div>
     </div>
     <div class="header-actions">
@@ -28,9 +28,9 @@
 
   <main>
     <nav class="mode-tabs" id="modeTabs" aria-label="Guide section">
-      <button type="button" class="active" data-mode="guide" aria-pressed="true">Track guide</button>
-      <button type="button" data-mode="manual" aria-pressed="false">Manual check</button>
-      <button type="button" data-mode="live" aria-pressed="false">Live check</button>
+      <button type="button" class="active" data-mode="guide" aria-pressed="true">Track context</button>
+      <button type="button" data-mode="manual" aria-pressed="false">Manual value</button>
+      <button type="button" data-mode="live" aria-pressed="false">Live value</button>
     </nav>
 
     <section id="guideView">
@@ -41,9 +41,9 @@
         <input id="searchInput" type="search" placeholder="Name, distance, rule..." autocomplete="off">
       </label>
       <label class="select">
-        <span>Strategy</span>
+        <span>Track profile</span>
         <select id="strategyFilter">
-          <option value="all">All strategies</option>
+          <option value="all">All profiles</option>
         </select>
       </label>
       <label class="select">
@@ -61,14 +61,14 @@
     </section>
 
     <details class="legend-panel">
-      <summary>Strategy &amp; data guide</summary>
+      <summary>Track context &amp; data guide</summary>
       <div class="legend" id="legend"></div>
     </details>
 
     <section class="results-head" aria-live="polite">
       <p id="resultCount">Tracks</p>
       <div class="results-actions">
-        <p>Tap the star to build a race-day shortlist.</p>
+        <p>Historical context only. A bet requires a runner probability and a value price.</p>
         <div class="view-toggle" id="viewToggle" role="group" aria-label="Result view">
           <button type="button" data-view="cards" aria-pressed="true">Cards</button>
           <button type="button" data-view="table" aria-pressed="false">Table</button>
@@ -83,7 +83,7 @@
         <thead>
           <tr>
             <th scope="col">Track</th>
-            <th scope="col">Confidence</th>
+            <th scope="col">Sample confidence</th>
             <th scope="col">Fav win</th>
             <th scope="col">Sample</th>
             <th scope="col">Draw metric</th>
@@ -101,7 +101,7 @@
       <div class="manual-toolbar">
         <div>
           <p class="eyebrow">No connection required</p>
-          <h2>Manual Race Check</h2>
+          <h2>Manual Value Check</h2>
         </div>
         <span class="local-status">Stored on this device</span>
       </div>
@@ -124,6 +124,32 @@
             <span>Racecard</span>
             <textarea id="manualRacecard" rows="12" placeholder="1 Rapid Echo 2.80&#10;2 Blue Lantern 4.20&#10;3 Final Turn 6.00" required></textarea>
           </label>
+          <fieldset class="decision-settings">
+            <legend>Value settings</legend>
+            <label>
+              <span>Commission</span>
+              <span class="input-suffix"><input id="manualCommission" type="number" min="0" max="25" step="0.1" value="8" inputmode="decimal"><em>%</em></span>
+            </label>
+            <label>
+              <span>Minimum edge</span>
+              <span class="input-suffix"><input id="manualMinEdge" type="number" min="0" max="50" step="0.5" value="5" inputmode="decimal"><em>%</em></span>
+            </label>
+            <label>
+              <span>Bankroll <small>optional</small></span>
+              <span class="input-prefix"><em>$</em><input id="manualBankroll" type="number" min="0" step="10" inputmode="decimal" placeholder="-"></span>
+            </label>
+            <label>
+              <span>Maximum risk</span>
+              <span class="input-suffix"><input id="manualRiskCap" type="number" min="0" max="5" step="0.1" value="0.5" inputmode="decimal"><em>%</em></span>
+            </label>
+            <label class="settings-wide">
+              <span>Probability evidence</span>
+              <select id="manualEvidence">
+                <option value="research">Research / unverified</option>
+                <option value="validated">Validated out-of-sample model</option>
+              </select>
+            </label>
+          </fieldset>
           <p class="manual-message" id="manualMessage" role="status"></p>
           <div class="manual-actions">
             <button class="secondary-button" id="clearManual" type="button">Clear</button>
@@ -141,7 +167,7 @@
       <div class="live-toolbar">
         <div>
           <p class="eyebrow">Betfair delayed feed</p>
-          <h2>Live Race Check</h2>
+          <h2>Live Value Check</h2>
         </div>
         <div class="live-actions">
           <span class="connection-status offline" id="connectionStatus">Connector offline</span>
@@ -240,8 +266,9 @@
     </article>
   </template>
 
-  <script src="app.js?v=20260816a"></script>
-  <script src="betfair.js?v=20260816a"></script>
-  <script src="manual.js?v=20260816a"></script>
+  <script src="value.js?v=20260816a"></script>
+  <script src="app.js?v=20260816b"></script>
+  <script src="betfair.js?v=20260816b"></script>
+  <script src="manual.js?v=20260816b"></script>
 </body>
 </html>

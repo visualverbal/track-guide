@@ -1,5 +1,7 @@
 (() => {
-  const connectorOrigin = location.hostname === "127.0.0.1" && location.port === "8787"
+  const value = window.GreyhoundValue;
+  const valueSettingsKey = "greyhoundGuide.liveValueSettings";
+  const connectorOrigin = ["127.0.0.1", "localhost"].includes(location.hostname) && location.port
     ? ""
     : "http://127.0.0.1:8787";
 
@@ -12,6 +14,10 @@
     selectedMarketId: null,
     bookTimer: null,
     clockTimer: null,
+    lastBook: null,
+    lastFetchedAt: null,
+    estimates: {},
+    valueSettings: restoreValueSettings(),
     mode: localStorage.getItem("greyhoundGuide.mode") || "guide"
   };
 
@@ -52,6 +58,8 @@
       const button = event.target.closest("button[data-market-id]");
       if (button) selectMarket(button.dataset.marketId);
     });
+    liveEls.raceDetail.addEventListener("input", storeValueInput);
+    liveEls.raceDetail.addEventListener("submit", assessValue);
 
     try {
       const data = await fetch("tracks.json", { cache: "no-store" }).then((response) => response.json());
@@ -130,6 +138,8 @@
     liveState.connected = false;
     liveState.markets = [];
     liveState.selectedMarketId = null;
+    liveState.lastBook = null;
+    liveState.lastFetchedAt = null;
     stopBookPolling();
     updateConnectionUi();
   }
@@ -179,6 +189,8 @@
         await selectMarket(liveState.markets[0].marketId);
       } else {
         liveState.selectedMarketId = null;
+        liveState.lastBook = null;
+        liveState.lastFetchedAt = null;
         stopBookPolling();
         liveEls.raceDetail.innerHTML = '<div class="race-empty">No greyhound WIN markets in this window.</div>';
       }
@@ -225,6 +237,8 @@
     try {
       const query = new URLSearchParams({ marketId: market.marketId, exchange: market.exchange });
       const data = await api(`/api/betfair/market?${query}`);
+      liveState.lastBook = data.book;
+      liveState.lastFetchedAt = data.fetchedAt;
       renderMarket(market, data.book, data.fetchedAt);
     } catch (error) {
       liveEls.raceDetail.innerHTML = `<div class="race-empty">${liveEscape(error.message)}</div>`;
@@ -240,35 +254,45 @@
       const price = bestBack(prices.get(String(runner.selectionId)));
       return price && (!best || price < best.price) ? { id: runner.selectionId, price } : best;
     }, null);
-
-    const rankedRunners = runners.map((runner) => {
+    const marketProbabilities = value.marketProbabilities(runners.map((runner) => bestBack(prices.get(String(runner.selectionId)))));
+    const estimates = liveState.estimates[market.marketId] || {};
+    const probabilityStatus = value.probabilitySetStatus(runners.map((runner) => probabilityDecimal(estimates[runner.selectionId])));
+    const settings = liveDecisionSettings();
+    let assessedRunners = runners.map((runner, index) => {
       const priceData = prices.get(String(runner.selectionId)) || {};
       const back = bestBack(priceData);
       const lay = bestLay(priceData);
       const metadata = runnerMetadata(runner);
-      const signal = runnerSignal(runner, favourite, guide, metadata);
-      return { runner, priceData, back, lay, signal, metadata };
-    }).sort((a, b) => {
-      const signalDifference = b.signal.priority - a.signal.priority;
-      if (signalDifference) return signalDifference;
-      const priceDifference = (a.back ?? Number.POSITIVE_INFINITY) - (b.back ?? Number.POSITIVE_INFINITY);
-      return priceDifference || a.runner.sortPriority - b.runner.sortPriority;
+      const context = runnerContext(runner, favourite, guide, metadata);
+      const assessment = value.evaluate({
+        probability: probabilityDecimal(estimates[runner.selectionId]),
+        backOdds: back,
+        layOdds: lay,
+        probabilitySetReady: probabilityStatus.balanced,
+        ...settings
+      });
+      return { runner, priceData, back, lay, context, metadata, assessment, marketProbability: marketProbabilities[index] };
     });
+    const selectedAssessments = value.selectMarketDecision(assessedRunners.map(({ assessment }) => assessment));
+    assessedRunners = assessedRunners.map((item, index) => ({ ...item, assessment: selectedAssessments[index] }));
+    const decisions = assessedRunners.filter(({ assessment }) => assessment.decision !== value.DECISION.NO_BET).length;
 
-    const rows = rankedRunners.map(({ runner, priceData, back, lay, signal, metadata }, index) => {
+    const rows = assessedRunners.map(({ runner, priceData, back, lay, context, metadata, assessment, marketProbability }) => {
       return `
-        <tr class="${index === 0 ? "priority-lead" : ""}">
-          <td><span class="priority-rank">${index + 1}</span></td>
+        <tr>
           <td><span class="trap-number">${liveEscape(runner.sortPriority)}</span></td>
           <td>
             <strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong>
             ${runnerMetadataHtml(metadata)}
           </td>
-          <td class="price-cell back-price">${priceText(back)}</td>
-          <td class="price-cell lay-price">${priceText(lay)}</td>
-          <td>${priceText(priceData.lastPriceTraded)}</td>
-          <td>${numberText(priceData.totalMatched)}</td>
-          <td><span class="runner-signal ${signal.className}">${signal.label}</span></td>
+          <td class="price-cell back-price">${priceText(back)}<small>${Number.isFinite(assessment.backRequired) ? `Needs ${(assessment.backRequired * 100).toFixed(1)}%` : "-"} | Market ${percentText(marketProbability, false)}</small></td>
+          <td class="price-cell lay-price">${priceText(lay)}<small>${Number.isFinite(assessment.layMaximum) ? `Lay below ${(assessment.layMaximum * 100).toFixed(1)}%` : "-"}</small></td>
+          <td><input class="live-probability-input" data-model-selection="${liveEscape(runner.selectionId)}" type="number" min="0.1" max="99.9" step="0.1" value="${numberInputValue(estimates[runner.selectionId], 1)}" placeholder="-" aria-label="${liveEscape(cleanRunnerName(runner.runnerName))} model win percentage"></td>
+          <td>${priceText(assessment.fairOdds)}</td>
+          <td class="edge-cell ${edgeClass(assessment.chosenRoi)}">${percentText(assessment.chosenRoi)}</td>
+          <td>${decisionHtml(assessment)}</td>
+          <td><span class="runner-signal ${context.className}">${context.label}</span></td>
+          <td><span class="market-secondary">Last ${priceText(priceData.lastPriceTraded)}<br>${numberText(priceData.totalMatched)} matched</span></td>
         </tr>
       `;
     }).join("");
@@ -285,9 +309,16 @@
         </div>
       </div>
       ${guideContext(guide)}
+      ${valueControls()}
+      <div class="decision-progress" aria-label="Assessment status">
+        ${progressItem("Race", `${runners.length} runners`, true)}
+        ${progressItem("Probabilities", probabilityStatusText(probabilityStatus, runners.length), probabilityStatus.balanced)}
+        ${progressItem("Costs", `${(settings.commission * 100).toFixed(1)}% commission`, true)}
+        ${progressItem("Decision", decisions ? `${decisions} value ${decisions === 1 ? "case" : "cases"}` : "No bet", decisions > 0)}
+      </div>
       <div class="runner-table-wrap">
-        <table class="runner-table">
-          <thead><tr><th>Priority</th><th>Trap</th><th>Greyhound</th><th>Back</th><th>Lay</th><th>Last</th><th>Matched</th><th>Signal</th></tr></thead>
+        <table class="runner-table live-runner-table">
+          <thead><tr><th>Trap</th><th>Greyhound</th><th>Back</th><th>Lay</th><th>Model %</th><th>Fair</th><th>Edge</th><th>Decision</th><th>Context</th><th>Market</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -295,8 +326,110 @@
         <span>Market ${liveEscape(book.status || "UNKNOWN")}${book.inplay ? " | In-play" : ""}</span>
         <span>Fetched ${formatTime(fetchedAt)} | delayed data</span>
       </div>
-      <p class="dog-history-note">${metadataFooter(rankedRunners)}</p>
+      <p class="dog-history-note">${metadataFooter(assessedRunners)}</p>
     `;
+  }
+
+  function valueControls() {
+    const settings = liveState.valueSettings;
+    return `
+      <form class="value-controls" data-value-form>
+        <label><span>Commission</span><span class="input-suffix"><input data-live-setting="commission" type="number" min="0" max="25" step="0.1" value="${settingInputValue(settings.commission, 1)}"><em>%</em></span></label>
+        <label><span>Minimum edge</span><span class="input-suffix"><input data-live-setting="minimumEdge" type="number" min="0" max="50" step="0.5" value="${settingInputValue(settings.minimumEdge, 1)}"><em>%</em></span></label>
+        <label><span>Bankroll <small>optional</small></span><span class="input-prefix"><em>$</em><input data-live-setting="bankroll" type="number" min="0" step="10" value="${numberInputValue(settings.bankroll, 0)}" placeholder="-"></span></label>
+        <label><span>Maximum risk</span><span class="input-suffix"><input data-live-setting="riskCap" type="number" min="0" max="5" step="0.1" value="${settingInputValue(settings.riskCap, 1)}"><em>%</em></span></label>
+        <label class="value-evidence"><span>Probability evidence</span><select data-live-setting="evidence"><option value="research"${settings.evidence === "research" ? " selected" : ""}>Research / unverified</option><option value="validated"${settings.evidence === "validated" ? " selected" : ""}>Validated out-of-sample model</option></select></label>
+        <button class="primary-button" type="submit">Assess value</button>
+      </form>
+    `;
+  }
+
+  function storeValueInput(event) {
+    const setting = event.target.closest("[data-live-setting]");
+    if (setting) {
+      liveState.valueSettings[setting.dataset.liveSetting] = setting.value;
+      localStorage.setItem(valueSettingsKey, JSON.stringify(liveState.valueSettings));
+      return;
+    }
+    const probability = event.target.closest("[data-model-selection]");
+    if (!probability || !liveState.selectedMarketId) return;
+    liveState.estimates[liveState.selectedMarketId] ||= {};
+    const number = Number(probability.value);
+    liveState.estimates[liveState.selectedMarketId][probability.dataset.modelSelection] = Number.isFinite(number) && number > 0 && number < 100 ? number : null;
+  }
+
+  function assessValue(event) {
+    if (!event.target.matches("[data-value-form]")) return;
+    event.preventDefault();
+    const market = liveState.markets.find((item) => item.marketId === liveState.selectedMarketId);
+    if (market && liveState.lastBook) renderMarket(market, liveState.lastBook, liveState.lastFetchedAt);
+  }
+
+  function liveDecisionSettings() {
+    return {
+      commission: numberOr(liveState.valueSettings.commission, 8) / 100,
+      minimumEdge: numberOr(liveState.valueSettings.minimumEdge, 5) / 100,
+      bankroll: numberOr(liveState.valueSettings.bankroll, 0),
+      riskCap: numberOr(liveState.valueSettings.riskCap, 0.5) / 100,
+      evidence: liveState.valueSettings.evidence === "validated" ? "validated" : "research"
+    };
+  }
+
+  function restoreValueSettings() {
+    try {
+      return { commission: "8", minimumEdge: "5", bankroll: "", riskCap: "0.5", evidence: "research", ...JSON.parse(localStorage.getItem(valueSettingsKey) || "{}") };
+    } catch (_error) {
+      localStorage.removeItem(valueSettingsKey);
+      return { commission: "8", minimumEdge: "5", bankroll: "", riskCap: "0.5", evidence: "research" };
+    }
+  }
+
+  function numberOr(input, fallback) {
+    if (String(input ?? "").trim() === "") return fallback;
+    const number = Number(input);
+    return Number.isFinite(number) && number >= 0 ? number : fallback;
+  }
+
+  function probabilityDecimal(input) {
+    const probability = Number(input);
+    return Number.isFinite(probability) && probability > 0 && probability < 100 ? probability / 100 : null;
+  }
+
+  function numberInputValue(input, decimals) {
+    const number = Number(input);
+    return Number.isFinite(number) && number > 0 ? number.toFixed(decimals) : "";
+  }
+
+  function settingInputValue(input, decimals) {
+    const number = Number(input);
+    return Number.isFinite(number) && number >= 0 ? number.toFixed(decimals) : "";
+  }
+
+  function progressItem(label, text, ready) {
+    return `<div class="${ready ? "ready" : "waiting"}"><span>${label}</span><strong>${liveEscape(text)}</strong></div>`;
+  }
+
+  function probabilityStatusText(status, runnerCount) {
+    if (!status.count) return "Needed";
+    if (!status.complete) return `${status.count}/${runnerCount} entered`;
+    return `${(status.total * 100).toFixed(1)}% ${status.balanced ? "ready" : "recheck"}`;
+  }
+
+  function decisionHtml(assessment) {
+    const stake = Number.isFinite(assessment.stake) && assessment.stake > 0
+      ? `<small>${assessment.stakeLabel} $${assessment.stake.toFixed(2)}</small>`
+      : "";
+    return `<span class="value-decision ${assessment.className}" title="${liveEscape(assessment.reason)}">${assessment.decision}</span>${stake}`;
+  }
+
+  function edgeClass(edge) {
+    if (!Number.isFinite(edge)) return "";
+    return edge > 0 ? "positive" : "negative";
+  }
+
+  function percentText(input, signed = true) {
+    if (!Number.isFinite(input)) return "-";
+    return `${signed && input >= 0 ? "+" : ""}${(input * 100).toFixed(1)}%`;
   }
 
   function guideContext(guide) {
@@ -305,12 +438,25 @@
     }
     return `
       <div class="guide-context">
-        <div><span>Guide</span><strong>${liveEscape(guide.strategy)}</strong></div>
-        <div><span>Favourite win</span><strong>${guide.favouriteWinRate.toFixed(1)}%</strong></div>
-        <div><span>Best draw</span><strong>${liveEscape(guide.bestDraw)} ${guide.bestDrawRate.toFixed(1)}%</strong></div>
-        <p>${liveEscape(guide.rule)}</p>
+        <div><span>Track profile</span><strong>${liveEscape(liveProfileLabel(guide.strategy))}</strong></div>
+        <div><span>Historical fav win</span><strong>${guide.favouriteWinRate.toFixed(1)}%</strong></div>
+        <div><span>Historical draw</span><strong>${liveEscape(guide.bestDraw)} ${guide.bestDrawRate.toFixed(1)}%</strong></div>
+        <p><strong>Context only.</strong> ${liveEscape(guide.rule)}</p>
       </div>
     `;
+  }
+
+  function liveProfileLabel(strategy) {
+    const labels = {
+      "A+ FOLLOW": "High favourite reliability",
+      "A FOLLOW": "Solid favourite reliability",
+      "B / CHECK FORM": "Mixed favourite reliability",
+      "BOX + $": "Draw-sensitive",
+      "BOX OVERRIDE": "Draw-sensitive",
+      "TRAP-SPECIFIC": "Trap-sensitive",
+      "RESEARCH": "Research only"
+    };
+    return labels[strategy] || strategy;
   }
 
   function findGuideTrack(venue) {
@@ -334,20 +480,17 @@
       .replace(/[^a-z0-9]+/g, "");
   }
 
-  function runnerSignal(runner, favourite, guide, metadata = {}) {
+  function runnerContext(runner, favourite, guide, metadata = {}) {
     const drawMatch = guide?.bestDraw?.match(/(?:Box|T)\s*(\d+)/i);
     const bestDraw = drawMatch && Number(drawMatch[1]) === Number(runner.sortPriority);
     const isFavourite = favourite && String(favourite.id) === String(runner.selectionId);
     const comment = commentSignal(metadata.comment);
-    if (comment && isFavourite && bestDraw) return { label: `Fav + draw + ${comment.shortLabel}`, className: "strong", priority: 4 };
-    if (comment?.className === "positive" && isFavourite) return { label: `Fav + ${comment.shortLabel}`, className: "strong", priority: 3 };
-    if (isFavourite && bestDraw) return { label: "Fav + draw", className: "strong", priority: 3 };
-    if (comment?.className === "caution" && isFavourite) return { label: "Fav caution", className: "caution", priority: 2 };
-    if (isFavourite) return { label: "Favourite", className: "favourite", priority: 2 };
-    if (comment?.className === "positive" && bestDraw) return { label: `Draw + ${comment.shortLabel}`, className: "strong", priority: 2 };
-    if (bestDraw) return { label: "Best draw", className: "draw", priority: 1 };
-    if (comment) return { label: comment.label, className: comment.className, priority: comment.className === "positive" ? 1 : 0 };
-    return { label: "Market price", className: "neutral", priority: 0 };
+    if (comment?.className === "caution") return { label: isFavourite ? "Fav candidate | caution" : comment.label, className: "caution" };
+    if (isFavourite && bestDraw) return { label: "Fav + draw candidate", className: "strong" };
+    if (isFavourite) return { label: "Favourite candidate", className: "favourite" };
+    if (bestDraw) return { label: "Draw candidate", className: "draw" };
+    if (comment) return { label: comment.label, className: comment.className };
+    return { label: "Context only", className: "neutral" };
   }
 
   function runnerMetadata(runner) {
@@ -396,7 +539,7 @@
   function metadataFooter(rankedRunners) {
     const withMetadata = rankedRunners.filter(({ metadata }) => metadata.entries.length).length;
     const withComments = rankedRunners.filter(({ metadata }) => metadata.comment).length;
-    if (withComments) return `Betfair returned runner comments for ${withComments} runner${withComments === 1 ? "" : "s"}; comment keywords are folded into the signal.`;
+    if (withComments) return `Betfair returned runner comments for ${withComments} runner${withComments === 1 ? "" : "s"}. They are shown as evidence notes and never create a bet decision by themselves.`;
     if (withMetadata) return `Betfair returned runner metadata for ${withMetadata} runner${withMetadata === 1 ? "" : "s"}, but no comment field was detected.`;
     return "Betfair supplied prices and runner names, but no runner metadata/comments were returned for this race.";
   }
@@ -408,7 +551,7 @@
       return { label: "Comment caution", shortLabel: "caution", className: "caution" };
     }
     if (/\b(quick|fast|early pace|good beginner|clear run|drops? in grade|well drawn|suited|strong chance|hard to beat)\b/.test(text)) {
-      return { label: "Comment plus", shortLabel: "comment", className: "positive" };
+      return { label: "Positive comment", shortLabel: "comment", className: "comment" };
     }
     return { label: "Comment note", shortLabel: "note", className: "comment" };
   }

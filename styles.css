@@ -839,10 +839,173 @@ textarea {
 }
 
 .manual-fields label > span,
-.manual-racecard > span {
+.manual-racecard > span,
+.decision-settings label > span,
+.value-controls label > span {
   display: block;
   margin-bottom: 5px;
   color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.decision-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.decision-settings legend {
+  padding: 0 5px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.decision-settings .settings-wide {
+  grid-column: 1 / -1;
+}
+
+.decision-settings input,
+.decision-settings select,
+.value-controls input,
+.value-controls select {
+  width: 100%;
+  height: 36px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.decision-settings select,
+.value-controls select {
+  padding: 0 9px;
+  border-radius: 5px;
+}
+
+.input-suffix,
+.input-prefix {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  margin: 0 !important;
+}
+
+.input-suffix input {
+  padding: 0 28px 0 9px;
+  border-radius: 5px;
+}
+
+.input-prefix input {
+  padding: 0 9px 0 24px;
+  border-radius: 5px;
+}
+
+.input-suffix em,
+.input-prefix em {
+  position: absolute;
+  z-index: 1;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  pointer-events: none;
+}
+
+.input-suffix em {
+  right: 9px;
+}
+
+.input-prefix em {
+  left: 9px;
+}
+
+.manual-results {
+  min-width: 0;
+  padding: 18px;
+}
+
+.manual-result-head {
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 54px;
+}
+
+.manual-results h2 span {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.decision-progress,
+.manual-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 13px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+.decision-progress > div,
+.manual-summary > div {
+  min-width: 0;
+  padding: 9px 11px;
+}
+
+.decision-progress > div + div,
+.manual-summary > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.decision-progress span,
+.decision-progress strong,
+.manual-summary span,
+.manual-summary strong {
+  display: block;
+}
+
+.decision-progress span,
+.manual-summary span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.decision-progress strong,
+.manual-summary strong {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.decision-progress .ready {
+  box-shadow: inset 0 2px var(--green);
+}
+
+.decision-progress .waiting {
+  box-shadow: inset 0 2px var(--amber);
+}
+
+.manual-guide-rule {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) minmax(240px, 1.2fr);
+  margin-bottom: 13px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  overflow: hidden;
 }
 
 .manual-guide-rule > * {
@@ -867,7 +1030,7 @@ textarea {
 }
 
 .manual-runner-table {
-  min-width: 610px;
+  min-width: 1120px;
 }
 
 .manual-runner-table th:last-child,
@@ -877,7 +1040,9 @@ textarea {
 }
 
 .manual-name-input,
-.manual-odds-input {
+.manual-odds-input,
+.manual-probability-input,
+.live-probability-input {
   width: 100%;
   height: 34px;
   border: 1px solid transparent;
@@ -898,12 +1063,34 @@ textarea {
   padding: 0 6px;
 }
 
+.manual-probability-input,
+.live-probability-input {
+  width: 74px;
+  padding: 0 6px;
+}
+
 .manual-name-input:hover,
 .manual-name-input:focus,
 .manual-odds-input:hover,
-.manual-odds-input:focus {
+.manual-odds-input:focus,
+.manual-probability-input:hover,
+.manual-probability-input:focus,
+.live-probability-input:hover,
+.live-probability-input:focus {
   border-color: var(--line);
   background: var(--surface-soft);
+}
+
+.price-detail,
+.price-cell small,
+.value-decision + small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .manual-remove {
@@ -1239,6 +1426,23 @@ textarea {
   font-size: 11px;
 }
 
+.value-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(92px, 0.75fr)) minmax(190px, 1.4fr) auto;
+  gap: 9px;
+  align-items: end;
+  margin: 0 0 13px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+}
+
+.value-controls .primary-button {
+  height: 36px;
+  white-space: nowrap;
+}
+
 .runner-table-wrap {
   contain: inline-size;
   overflow-x: auto;
@@ -1251,6 +1455,10 @@ textarea {
   min-width: 720px;
   border-collapse: collapse;
   font-size: 12px;
+}
+
+.live-runner-table {
+  min-width: 1180px;
 }
 
 .runner-table th,
@@ -1360,6 +1568,59 @@ textarea {
   border-color: color-mix(in srgb, var(--red) 42%, var(--line));
   background: color-mix(in srgb, var(--red) 8%, var(--surface));
   color: var(--red);
+}
+
+.value-decision {
+  display: inline-flex;
+  min-width: 72px;
+  min-height: 25px;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.value-decision.back {
+  border-color: color-mix(in srgb, var(--green) 50%, var(--line));
+  background: color-mix(in srgb, var(--green) 10%, var(--surface));
+  color: var(--green);
+}
+
+.value-decision.lay {
+  border-color: color-mix(in srgb, var(--red) 50%, var(--line));
+  background: color-mix(in srgb, var(--red) 10%, var(--surface));
+  color: var(--red);
+}
+
+.value-decision.paper {
+  border-color: color-mix(in srgb, var(--amber) 50%, var(--line));
+  background: color-mix(in srgb, var(--amber) 10%, var(--surface));
+  color: var(--amber);
+}
+
+.edge-cell {
+  font-weight: 850;
+}
+
+.edge-cell.positive {
+  color: var(--green);
+}
+
+.edge-cell.negative {
+  color: var(--red);
+}
+
+.market-secondary {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .runner-meta {
@@ -1491,17 +1752,28 @@ textarea {
     grid-template-columns: minmax(300px, 350px) minmax(0, 1fr);
   }
 
+  .decision-progress,
   .manual-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .decision-progress > div:nth-child(3),
   .manual-summary > div:nth-child(3) {
     border-top: 1px solid var(--line);
     border-left: 0;
   }
 
+  .decision-progress > div:nth-child(4),
   .manual-summary > div:nth-child(4) {
     border-top: 1px solid var(--line);
+  }
+
+  .value-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .value-controls .value-evidence {
+    grid-column: span 2;
   }
 
   .manual-guide-rule {
@@ -1588,6 +1860,14 @@ textarea {
     grid-column: 1 / -1;
     border-top: 1px solid var(--line);
     border-left: 0;
+  }
+
+  .value-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .value-controls .value-evidence {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1695,9 +1975,9 @@ textarea {
   }
 
   .manual-runner-table {
-    width: 100%;
-    min-width: 0;
-    table-layout: fixed;
+    width: max-content;
+    min-width: 1120px;
+    table-layout: auto;
   }
 
   .manual-runner-table th,
@@ -1705,26 +1985,9 @@ textarea {
     padding: 7px 5px;
   }
 
-  .manual-runner-table th:nth-child(1) {
-    width: 44px;
-  }
-
-  .manual-runner-table th:nth-child(3) {
-    width: 64px;
-  }
-
-  .manual-runner-table th:nth-child(4) {
-    width: 78px;
-  }
-
-  .manual-runner-table th:nth-child(5) {
-    width: 38px;
-  }
-
   .manual-name-input,
-  .manual-odds-input {
-    width: 100%;
-    min-width: 0;
+  .manual-odds-input,
+  .manual-probability-input {
     padding: 0 4px;
   }
 
@@ -1740,10 +2003,18 @@ textarea {
     width: 28px;
   }
 
+  .decision-progress,
   .manual-summary {
     grid-template-columns: 1fr;
   }
 
+  .decision-settings .settings-wide {
+    grid-column: 1 / -1;
+  }
+
+  .decision-progress > div + div,
+  .decision-progress > div:nth-child(3),
+  .decision-progress > div:nth-child(4),
   .manual-summary > div + div,
   .manual-summary > div:nth-child(3),
   .manual-summary > div:nth-child(4) {
