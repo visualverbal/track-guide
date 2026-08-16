@@ -1349,6 +1349,32 @@ textarea {
   color: var(--blue);
 }
 
+.runner-signal.positive,
+.runner-signal.comment {
+  border-color: color-mix(in srgb, var(--green) 38%, var(--line));
+  background: color-mix(in srgb, var(--green) 8%, var(--surface));
+  color: var(--green);
+}
+
+.runner-signal.caution {
+  border-color: color-mix(in srgb, var(--red) 42%, var(--line));
+  background: color-mix(in srgb, var(--red) 8%, var(--surface));
+  color: var(--red);
+}
+
+.runner-meta {
+  display: block;
+  max-width: 280px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.runner-meta.comment {
+  color: var(--text);
+}
+
 .market-footer {
   justify-content: space-between;
   gap: 12px;

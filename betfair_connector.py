@@ -140,6 +140,7 @@ class BetfairSession:
                     "EVENT",
                     "MARKET_START_TIME",
                     "RUNNER_DESCRIPTION",
+                    "RUNNER_METADATA",
                     "MARKET_DESCRIPTION",
                 ],
                 "sort": "FIRST_TO_START",
@@ -242,13 +243,21 @@ class BetfairSession:
 
     def _demo_markets(self) -> list[dict[str, Any]]:
         start = datetime.now(timezone.utc) + timedelta(minutes=3)
-        runners = [
-            {"selectionId": 1000 + index, "runnerName": name, "sortPriority": index}
-            for index, name in enumerate(
-                ["Rapid Echo", "Blue Lantern", "Final Turn", "Northbound", "City Limit", "Fast Detail"],
-                start=1,
-            )
+        comments = [
+            "Good beginner and well drawn near the rail.",
+            "",
+            "Slow away last run and needs luck early.",
+            "Drops in grade and suited by this distance.",
+            "",
+            "Wide runner who can find trouble if crowded.",
         ]
+        names = ["Rapid Echo", "Blue Lantern", "Final Turn", "Northbound", "City Limit", "Fast Detail"]
+        runners = []
+        for index, name in enumerate(names, start=1):
+            runner = {"selectionId": 1000 + index, "runnerName": name, "sortPriority": index}
+            if comments[index - 1]:
+                runner["metadata"] = {"COMMENT": comments[index - 1]}
+            runners.append(runner)
         return [{
             "marketId": "demo.1",
             "marketName": "R5 450m Grade 5",

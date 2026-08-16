@@ -245,8 +245,9 @@
       const priceData = prices.get(String(runner.selectionId)) || {};
       const back = bestBack(priceData);
       const lay = bestLay(priceData);
-      const signal = runnerSignal(runner, favourite, guide);
-      return { runner, priceData, back, lay, signal };
+      const metadata = runnerMetadata(runner);
+      const signal = runnerSignal(runner, favourite, guide, metadata);
+      return { runner, priceData, back, lay, signal, metadata };
     }).sort((a, b) => {
       const signalDifference = b.signal.priority - a.signal.priority;
       if (signalDifference) return signalDifference;
@@ -254,12 +255,15 @@
       return priceDifference || a.runner.sortPriority - b.runner.sortPriority;
     });
 
-    const rows = rankedRunners.map(({ runner, priceData, back, lay, signal }, index) => {
+    const rows = rankedRunners.map(({ runner, priceData, back, lay, signal, metadata }, index) => {
       return `
         <tr class="${index === 0 ? "priority-lead" : ""}">
           <td><span class="priority-rank">${index + 1}</span></td>
           <td><span class="trap-number">${liveEscape(runner.sortPriority)}</span></td>
-          <td><strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong></td>
+          <td>
+            <strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong>
+            ${runnerMetadataHtml(metadata)}
+          </td>
           <td class="price-cell back-price">${priceText(back)}</td>
           <td class="price-cell lay-price">${priceText(lay)}</td>
           <td>${priceText(priceData.lastPriceTraded)}</td>
@@ -291,7 +295,7 @@
         <span>Market ${liveEscape(book.status || "UNKNOWN")}${book.inplay ? " | In-play" : ""}</span>
         <span>Fetched ${formatTime(fetchedAt)} | delayed data</span>
       </div>
-      <p class="dog-history-note">Betfair supplies prices and runner names. Dog-level form will require importing the free historical files.</p>
+      <p class="dog-history-note">${metadataFooter(rankedRunners)}</p>
     `;
   }
 
@@ -330,14 +334,87 @@
       .replace(/[^a-z0-9]+/g, "");
   }
 
-  function runnerSignal(runner, favourite, guide) {
+  function runnerSignal(runner, favourite, guide, metadata = {}) {
     const drawMatch = guide?.bestDraw?.match(/(?:Box|T)\s*(\d+)/i);
     const bestDraw = drawMatch && Number(drawMatch[1]) === Number(runner.sortPriority);
     const isFavourite = favourite && String(favourite.id) === String(runner.selectionId);
+    const comment = commentSignal(metadata.comment);
+    if (comment && isFavourite && bestDraw) return { label: `Fav + draw + ${comment.shortLabel}`, className: "strong", priority: 4 };
+    if (comment?.className === "positive" && isFavourite) return { label: `Fav + ${comment.shortLabel}`, className: "strong", priority: 3 };
     if (isFavourite && bestDraw) return { label: "Fav + draw", className: "strong", priority: 3 };
+    if (comment?.className === "caution" && isFavourite) return { label: "Fav caution", className: "caution", priority: 2 };
     if (isFavourite) return { label: "Favourite", className: "favourite", priority: 2 };
+    if (comment?.className === "positive" && bestDraw) return { label: `Draw + ${comment.shortLabel}`, className: "strong", priority: 2 };
     if (bestDraw) return { label: "Best draw", className: "draw", priority: 1 };
+    if (comment) return { label: comment.label, className: comment.className, priority: comment.className === "positive" ? 1 : 0 };
     return { label: "Market price", className: "neutral", priority: 0 };
+  }
+
+  function runnerMetadata(runner) {
+    const metadata = runner?.metadata && typeof runner.metadata === "object" ? runner.metadata : {};
+    const entries = Object.entries(metadata)
+      .filter(([, value]) => value !== null && value !== undefined && String(value).trim())
+      .map(([key, value]) => [String(key), String(value).trim()]);
+    const comment = metadataComment(entries);
+    const summary = entries
+      .filter(([key]) => !comment || !comment.keys.includes(key))
+      .slice(0, 3)
+      .map(([key, value]) => `${readableMetadataKey(key)}: ${value}`);
+    return { entries, comment: comment?.text || "", summary };
+  }
+
+  function metadataComment(entries) {
+    const commentKeys = [
+      "COMMENT",
+      "COMMENTS",
+      "COMMENTARY",
+      "RUN_COMMENT",
+      "RUNNER_COMMENT",
+      "SELECTION_COMMENT",
+      "FORM_COMMENT",
+      "RACE_COMMENT",
+      "VERDICT"
+    ];
+    const matches = entries.filter(([key]) => commentKeys.includes(key.toUpperCase()) || /COMMENT|VERDICT|PREVIEW/i.test(key));
+    if (!matches.length) return null;
+    return {
+      keys: matches.map(([key]) => key),
+      text: matches.map(([, value]) => value).join(" ")
+    };
+  }
+
+  function runnerMetadataHtml(metadata) {
+    if (metadata.comment) {
+      return `<span class="runner-meta comment">${liveEscape(metadata.comment)}</span>`;
+    }
+    if (metadata.summary.length) {
+      return `<span class="runner-meta">${liveEscape(metadata.summary.join(" | "))}</span>`;
+    }
+    return "";
+  }
+
+  function metadataFooter(rankedRunners) {
+    const withMetadata = rankedRunners.filter(({ metadata }) => metadata.entries.length).length;
+    const withComments = rankedRunners.filter(({ metadata }) => metadata.comment).length;
+    if (withComments) return `Betfair returned runner comments for ${withComments} runner${withComments === 1 ? "" : "s"}; comment keywords are folded into the signal.`;
+    if (withMetadata) return `Betfair returned runner metadata for ${withMetadata} runner${withMetadata === 1 ? "" : "s"}, but no comment field was detected.`;
+    return "Betfair supplied prices and runner names, but no runner metadata/comments were returned for this race.";
+  }
+
+  function commentSignal(comment) {
+    const text = String(comment || "").toLowerCase();
+    if (!text) return null;
+    if (/\b(slow|awkward|miss(?:ed)?|crowd|checked|bump|trouble|needs luck|risky|wide from inside|inside from wide)\b/.test(text)) {
+      return { label: "Comment caution", shortLabel: "caution", className: "caution" };
+    }
+    if (/\b(quick|fast|early pace|good beginner|clear run|drops? in grade|well drawn|suited|strong chance|hard to beat)\b/.test(text)) {
+      return { label: "Comment plus", shortLabel: "comment", className: "positive" };
+    }
+    return { label: "Comment note", shortLabel: "note", className: "comment" };
+  }
+
+  function readableMetadataKey(key) {
+    return key.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
   function bestBack(runner) {
