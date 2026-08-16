@@ -67,6 +67,10 @@
     "Healesville": "auBetfair",
     "Capalaba": "auBetfair",
     "Mount Gambier": "auBetfair",
+    "Murray Bridge": "auBetfair",
+    "Sale": "auBetfair",
+    "Nowra": "auBetfair",
+    "Temora": "auBetfair",
     "Dubbo": "auBetfair",
     "Parklands": "auNew",
     "Q1 Lakeside": "auNew",
@@ -535,6 +539,88 @@
         { "distance": "732m", "note": "30 wins from 48 unique favourites, 62.5%; very small sample." }
       ],
       "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 23.3% of all runners; five joint-favourite races were excluded."
+    },
+    {
+      "name": "Murray Bridge",
+      "country": "AU",
+      "strategy": "A+ FOLLOW",
+      "grade": "A+",
+      "headline": "Very strong favourite signal, led by the 300m and 350m straight-course races.",
+      "favouriteWinRate": 48.3,
+      "sample": 3745,
+      "wins": 1810,
+      "bestDraw": "Box 2",
+      "bestDrawRate": 17.4,
+      "rule": "Give the favourite strong weight, especially at 300m and 350m. At longer one-turn distances, keep form and box in the decision.",
+      "distances": [
+        { "distance": "300m", "note": "725 wins from 1,437 unique favourites, 50.5%." },
+        { "distance": "350m", "note": "224 wins from 430 unique favourites, 52.1%." },
+        { "distance": "395m", "note": "514 wins from 1,109 unique favourites, 46.3%." },
+        { "distance": "455m", "note": "238 wins from 523 unique favourites, 45.5%." },
+        { "distance": "530m", "note": "71 wins from 166 unique favourites, 42.8%; smaller sample." },
+        { "distance": "680m", "note": "38 wins from 80 unique favourites, 47.5%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025, combining Murray Bridge and Murray Bridge Straight labels. Box 2 and Box 8 each rounded to 17.4% of all runners; Box 2 was narrowly higher. Three joint-favourite races were excluded."
+    },
+    {
+      "name": "Sale",
+      "country": "AU",
+      "strategy": "B / CHECK FORM",
+      "grade": "B",
+      "headline": "Mixed favourite signal; 435m is weaker while 440m and 520m are stronger.",
+      "favouriteWinRate": 39.2,
+      "sample": 2836,
+      "wins": 1112,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 17.7,
+      "rule": "Check distance before following price. Be cautious at 435m and give Box 1 extra weight when form and prices are close.",
+      "distances": [
+        { "distance": "435m", "note": "541 wins from 1,472 unique favourites, 36.8%." },
+        { "distance": "440m", "note": "309 wins from 732 unique favourites, 42.2%." },
+        { "distance": "510m", "note": "143 wins from 365 unique favourites, 39.2%." },
+        { "distance": "520m", "note": "83 wins from 189 unique favourites, 43.9%; smaller sample." },
+        { "distance": "640m", "note": "22 wins from 53 unique favourites, 41.5%; very small sample." },
+        { "distance": "650m", "note": "14 wins from 25 unique favourites, 56.0%; very small sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 17.7% of all runners; two joint-favourite races were excluded."
+    },
+    {
+      "name": "Nowra",
+      "country": "AU",
+      "strategy": "A+ FOLLOW",
+      "grade": "A+",
+      "headline": "Strong favourite track at both 365m and 520m, with a clear Box 1 advantage.",
+      "favouriteWinRate": 44.6,
+      "sample": 1762,
+      "wins": 785,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 20.7,
+      "rule": "Follow price confidently at 365m and 520m, with Box 1 as a strong positive draw signal.",
+      "distances": [
+        { "distance": "365m", "note": "557 wins from 1,259 unique favourites, 44.2%." },
+        { "distance": "520m", "note": "201 wins from 457 unique favourites, 44.0%." },
+        { "distance": "630m", "note": "27 wins from 46 unique favourites, 58.7%; very small sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 20.7% of all runners; five joint-favourite races were excluded."
+    },
+    {
+      "name": "Temora",
+      "country": "AU",
+      "strategy": "B / CHECK FORM",
+      "grade": "B",
+      "headline": "Distance-sensitive favourite track; 457m is stronger than 330m.",
+      "favouriteWinRate": 40.1,
+      "sample": 1938,
+      "wins": 778,
+      "bestDraw": "Box 1",
+      "bestDrawRate": 18.3,
+      "rule": "Use price with form at 330m. Give favourites more weight at 457m and use Box 1 as the main draw positive.",
+      "distances": [
+        { "distance": "330m", "note": "504 wins from 1,313 unique favourites, 38.4%." },
+        { "distance": "457m", "note": "243 wins from 555 unique favourites, 43.8%." },
+        { "distance": "570m", "note": "31 wins from 69 unique favourites, 44.9%; smaller sample." }
+      ],
+      "notes": "Betfair BSP archive, January 2022 to May 2025. Box 1 won 18.3% of all runners; five joint-favourite races were excluded."
     },
     {
       "name": "Q1 Lakeside",
