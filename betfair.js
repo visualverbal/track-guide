@@ -1,5 +1,5 @@
 (() => {
-  const connectorOrigin = location.hostname === "127.0.0.1" && location.port === "8787"
+  const connectorOrigin = ["127.0.0.1", "localhost"].includes(location.hostname)
     ? ""
     : "http://127.0.0.1:8787";
 
@@ -225,50 +225,68 @@
     try {
       const query = new URLSearchParams({ marketId: market.marketId, exchange: market.exchange });
       const data = await api(`/api/betfair/market?${query}`);
-      renderMarket(market, data.book, data.fetchedAt);
+      renderMarket(data.catalogue || market, data.book, data.fetchedAt, data.enrichment || null);
     } catch (error) {
       liveEls.raceDetail.innerHTML = `<div class="race-empty">${liveEscape(error.message)}</div>`;
     }
   }
 
-  function renderMarket(market, book, fetchedAt) {
+  function renderMarket(market, book, fetchedAt, enrichment) {
     const venue = market.event?.venue || market.event?.name || "Greyhounds";
     const guide = findGuideTrack(venue);
     const prices = new Map((book.runners || []).map((runner) => [String(runner.selectionId), runner]));
-    const runners = [...(market.runners || [])].sort((a, b) => a.sortPriority - b.sortPriority);
+    const activeIds = new Set((book.runners || [])
+      .filter((runner) => runner.status === "ACTIVE")
+      .map((runner) => String(runner.selectionId)));
+    const runners = [...(market.runners || [])]
+      .filter((runner) => !activeIds.size || activeIds.has(String(runner.selectionId)))
+      .sort((a, b) => a.sortPriority - b.sortPriority);
     const favourite = runners.reduce((best, runner) => {
       const price = bestBack(prices.get(String(runner.selectionId)));
       return price && (!best || price < best.price) ? { id: runner.selectionId, price } : best;
     }, null);
 
-    const rankedRunners = runners.map((runner) => {
+    const preparedRunners = runners.map((runner) => {
       const priceData = prices.get(String(runner.selectionId)) || {};
       const back = bestBack(priceData);
       const lay = bestLay(priceData);
       const metadata = runnerMetadata(runner);
-      const signal = runnerSignal(runner, favourite, guide, metadata);
-      return { runner, priceData, back, lay, signal, metadata };
-    }).sort((a, b) => {
+      return {
+        runner,
+        priceData,
+        back,
+        lay,
+        metadata,
+        recorder: runner.recorder || null,
+        actualBox: actualBoxFor(runner, market)
+      };
+    });
+    const rankedRunners = scoreRace(preparedRunners, favourite, guide).sort((a, b) => {
       const signalDifference = b.signal.priority - a.signal.priority;
       if (signalDifference) return signalDifference;
+      const scoreDifference = b.signal.score - a.signal.score;
+      if (scoreDifference) return scoreDifference;
       const priceDifference = (a.back ?? Number.POSITIVE_INFINITY) - (b.back ?? Number.POSITIVE_INFINITY);
       return priceDifference || a.runner.sortPriority - b.runner.sortPriority;
     });
 
-    const rows = rankedRunners.map(({ runner, priceData, back, lay, signal, metadata }, index) => {
+    const rows = rankedRunners.map(({ runner, priceData, back, lay, signal, metadata, recorder, actualBox, speedRank }, index) => {
+      const comment = recorder?.comment || metadata.comment;
       return `
         <tr class="${index === 0 ? "priority-lead" : ""}">
           <td><span class="priority-rank">${index + 1}</span></td>
-          <td><span class="trap-number">${liveEscape(runner.sortPriority)}</span></td>
+          <td class="box-cell">${boxHtml(recorder, actualBox)}</td>
           <td>
             <strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong>
-            ${runnerMetadataHtml(metadata)}
+            ${runnerMetadataHtml(metadata, comment)}
           </td>
+          <td>${paceHtml(recorder, speedRank, comment)}</td>
+          <td>${numberText(recorder?.rating)}</td>
+          <td class="form-cell">${liveEscape(recorder?.form || "-")}</td>
           <td class="price-cell back-price">${priceText(back)}</td>
           <td class="price-cell lay-price">${priceText(lay)}</td>
-          <td>${priceText(priceData.lastPriceTraded)}</td>
-          <td>${numberText(priceData.totalMatched)}</td>
-          <td><span class="runner-signal ${signal.className}">${signal.label}</span></td>
+          <td class="reference-price">${priceText(recorder?.ourPrice)}</td>
+          <td><span class="runner-signal ${signal.className}" title="${liveEscape(signal.reason)}">${signal.label}</span></td>
         </tr>
       `;
     }).join("");
@@ -285,9 +303,11 @@
         </div>
       </div>
       ${guideContext(guide)}
+      ${raceSummary(rankedRunners, enrichment)}
+      ${enrichmentStatus(enrichment)}
       <div class="runner-table-wrap">
         <table class="runner-table">
-          <thead><tr><th>Priority</th><th>Trap</th><th>Greyhound</th><th>Back</th><th>Lay</th><th>Last</th><th>Matched</th><th>Signal</th></tr></thead>
+          <thead><tr><th>Priority</th><th>Box</th><th>Greyhound</th><th>Early</th><th>Rtg</th><th>Form</th><th>Back</th><th>Lay</th><th>Our $ <span>ref</span></th><th>Signal</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -295,7 +315,49 @@
         <span>Market ${liveEscape(book.status || "UNKNOWN")}${book.inplay ? " | In-play" : ""}</span>
         <span>Fetched ${formatTime(fetchedAt)} | delayed data</span>
       </div>
-      <p class="dog-history-note">${metadataFooter(rankedRunners)}</p>
+      <p class="dog-history-note">${metadataFooter(rankedRunners, enrichment)}</p>
+    `;
+  }
+
+  function raceSummary(rankedRunners, enrichment) {
+    if (!rankedRunners.length) return "";
+    const evidenceAvailable = ["matched", "partial"].includes(enrichment?.status);
+    const intro = evidenceAvailable
+      ? "Recorder form ranked with market and Track Guide context"
+      : "Market and available Betfair evidence only";
+    const items = rankedRunners.slice(0, 4).map(({ runner, signal }) => `
+      <div class="race-summary-item ${signal.className}">
+        <span>${signal.label}</span>
+        <strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong>
+        <small>${liveEscape(signal.reason)}</small>
+      </div>
+    `).join("");
+    return `
+      <section class="race-summary" aria-label="Race Summary">
+        <div class="race-summary-head"><strong>Race Summary</strong><span>${liveEscape(intro)}</span></div>
+        <div class="race-summary-list">${items}</div>
+      </section>
+    `;
+  }
+
+  function enrichmentStatus(enrichment) {
+    if (!enrichment || enrichment.status === "not-applicable") return "";
+    if (["matched", "partial"].includes(enrichment.status)) {
+      const sourceLink = enrichment.sourceUrl
+        ? `<a href="${liveEscape(enrichment.sourceUrl)}" target="_blank" rel="noreferrer">Greyhound Recorder</a>`
+        : "Greyhound Recorder";
+      return `
+        <div class="enrichment-status matched">
+          <strong>${liveEscape(enrichment.matchedRunners)}/${liveEscape(enrichment.betfairActiveRunners)} runners matched</strong>
+          <span>Actual boxes and form from ${sourceLink}. Our $ is reference only.</span>
+        </div>
+      `;
+    }
+    return `
+      <div class="enrichment-status unavailable">
+        <strong>Recorder form unavailable</strong>
+        <span>${liveEscape(enrichment.reason || "The source could not be matched safely.")} Betfair Live Check remains active.</span>
+      </div>
     `;
   }
 
@@ -334,20 +396,178 @@
       .replace(/[^a-z0-9]+/g, "");
   }
 
-  function runnerSignal(runner, favourite, guide, metadata = {}) {
+  function actualBoxFor(runner, market) {
+    const value = Number(runner.recorder?.actualBox ?? runner.actualBox);
+    if (Number.isInteger(value) && value >= 1 && value <= 8) return value;
+    if (market.event?.countryCode === "AU") return null;
+    const fallback = Number(runner.sortPriority);
+    return Number.isInteger(fallback) ? fallback : null;
+  }
+
+  function scoreRace(runners, favourite, guide) {
+    const speedOrder = rankedValues(runners, (item) => item.recorder?.earlySpeed);
+    const ratingOrder = rankedValues(runners, (item) => item.recorder?.rating);
+    const marketOrder = [...runners]
+      .filter((item) => Number.isFinite(item.back))
+      .sort((a, b) => a.back - b.back);
+    const marketRanks = new Map(marketOrder.map((item, index) => [String(item.runner.selectionId), index + 1]));
     const drawMatch = guide?.bestDraw?.match(/(?:Box|T)\s*(\d+)/i);
-    const bestDraw = drawMatch && Number(drawMatch[1]) === Number(runner.sortPriority);
-    const isFavourite = favourite && String(favourite.id) === String(runner.selectionId);
-    const comment = commentSignal(metadata.comment);
-    if (comment && isFavourite && bestDraw) return { label: `Fav + draw + ${comment.shortLabel}`, className: "strong", priority: 4 };
-    if (comment?.className === "positive" && isFavourite) return { label: `Fav + ${comment.shortLabel}`, className: "strong", priority: 3 };
-    if (isFavourite && bestDraw) return { label: "Fav + draw", className: "strong", priority: 3 };
-    if (comment?.className === "caution" && isFavourite) return { label: "Fav caution", className: "caution", priority: 2 };
-    if (isFavourite) return { label: "Favourite", className: "favourite", priority: 2 };
-    if (comment?.className === "positive" && bestDraw) return { label: `Draw + ${comment.shortLabel}`, className: "strong", priority: 2 };
-    if (bestDraw) return { label: "Best draw", className: "draw", priority: 1 };
-    if (comment) return { label: comment.label, className: comment.className, priority: comment.className === "positive" ? 1 : 0 };
-    return { label: "Market price", className: "neutral", priority: 0 };
+    const bestDrawNumber = drawMatch ? Number(drawMatch[1]) : null;
+
+    return runners.map((item) => {
+      let score = 0;
+      const evidence = [];
+      const speedRank = speedOrder.get(String(item.runner.selectionId)) || null;
+      const ratingRank = ratingOrder.get(String(item.runner.selectionId)) || null;
+      const marketRank = marketRanks.get(String(item.runner.selectionId)) || null;
+      const fieldSize = runners.length;
+      const isFavourite = favourite && String(favourite.id) === String(item.runner.selectionId);
+      const bestDraw = bestDrawNumber && item.actualBox === bestDrawNumber;
+      const comment = item.recorder?.comment || item.metadata.comment;
+      const commentView = commentEvidence(comment);
+
+      if (speedRank) {
+        if (speedRank === 1) {
+          score += 4;
+          evidence.push("fastest early speed");
+        } else if (speedRank <= Math.max(2, Math.ceil(fieldSize / 4))) {
+          score += 3;
+          evidence.push(`early speed rank ${speedRank}/${speedOrder.size}`);
+        } else if (speedRank <= Math.ceil(speedOrder.size / 2)) {
+          score += 1;
+          evidence.push(`above-median early speed`);
+        } else if (speedRank === speedOrder.size) {
+          score -= 2;
+          evidence.push("lowest early speed");
+        }
+      } else {
+        const pace = derivedPace(comment);
+        if (pace === "FAST") {
+          score += 2;
+          evidence.push("comment supports early pace");
+        } else if (pace === "SLOW") {
+          score -= 2;
+          evidence.push("comment questions early pace");
+        }
+      }
+
+      if (ratingRank) {
+        if (ratingRank === 1) {
+          score += 3;
+          evidence.push("top Recorder rating");
+        } else if (ratingRank <= Math.min(3, ratingOrder.size)) {
+          score += 2;
+          evidence.push(`rating rank ${ratingRank}/${ratingOrder.size}`);
+        } else if (ratingRank === ratingOrder.size) {
+          score -= 1;
+          evidence.push("lowest Recorder rating");
+        }
+      }
+
+      if (marketRank === 1) {
+        score += 3;
+        evidence.push("market favourite");
+      } else if (marketRank === 2) {
+        score += 2;
+        evidence.push("second in market");
+      } else if (marketRank === 3) {
+        score += 1;
+        evidence.push("third in market");
+      }
+
+      if (bestDraw) {
+        score += 2;
+        evidence.push(`${guide.bestDraw} guide positive`);
+      }
+      if (isFavourite && /^A/.test(guide?.strategy || "")) score += 1;
+
+      const formView = recentFormEvidence(item.recorder?.form);
+      score += formView.score;
+      if (formView.reason) evidence.push(formView.reason);
+      score += commentView.score;
+      if (commentView.reason) evidence.push(commentView.reason);
+
+      let label;
+      if (score >= 8) label = "TOP SIGNAL";
+      else if (score >= 5) label = "GOOD LOOK";
+      else if (score >= 1) label = "MIXED";
+      else label = "CAUTION";
+      if (commentView.negative && ["TOP SIGNAL", "GOOD LOOK"].includes(label)) label = "MIXED";
+      if (commentView.severe && label === "MIXED" && score < 4) label = "CAUTION";
+
+      const classes = { "TOP SIGNAL": "top-signal", "GOOD LOOK": "good-look", "MIXED": "mixed", "CAUTION": "caution" };
+      const priorities = { "TOP SIGNAL": 4, "GOOD LOOK": 3, "MIXED": 2, "CAUTION": 1 };
+      return {
+        ...item,
+        speedRank,
+        signal: {
+          label,
+          className: classes[label],
+          priority: priorities[label],
+          score,
+          reason: evidence.slice(0, 3).join("; ") || "Limited verified form evidence"
+        }
+      };
+    });
+  }
+
+  function rankedValues(runners, getter) {
+    const ordered = [...runners]
+      .filter((item) => Number.isFinite(getter(item)))
+      .sort((a, b) => getter(b) - getter(a));
+    return new Map(ordered.map((item, index) => [String(item.runner.selectionId), index + 1]));
+  }
+
+  function recentFormEvidence(form) {
+    const positions = String(form || "").match(/[1-8]/g)?.map(Number) || [];
+    if (!positions.length) return { score: 0, reason: "" };
+    const wins = positions.filter((position) => position === 1).length;
+    const placings = positions.filter((position) => position <= 3).length;
+    if (wins >= 2) return { score: 2, reason: "multiple recent wins" };
+    if (wins || placings >= 2) return { score: 1, reason: "recent top-three form" };
+    if (positions.every((position) => position >= 5)) return { score: -2, reason: "weak recent finishes" };
+    return { score: 0, reason: "mixed recent form" };
+  }
+
+  function commentEvidence(comment) {
+    const text = String(comment || "").toLowerCase();
+    if (!text) return { score: 0, reason: "", negative: false, severe: false };
+    if (/ready to end|must have|must be considered|running hot|right box|strong chance|hard to beat|should be saluting/.test(text)) {
+      return { score: 2, reason: "positive form comment", negative: false, severe: false };
+    }
+    if (/not do enough at the jump|slow away|tardy|take (?:her|his|their) time|awkward|early pace concern/.test(text)) {
+      return { score: -3, reason: "negative early-pace comment", negative: true, severe: true };
+    }
+    if (/doesn.t always|harder on (?:his|her|their) chances|challenge is to repeat|too risky|happy to look elsewhere|needs luck|poor form/.test(text)) {
+      return { score: -2, reason: "negative form/draw comment", negative: true, severe: false };
+    }
+    if (/chance|consider|suited|well drawn|good beginner|quick|fast/.test(text)) {
+      return { score: 1, reason: "supportive form comment", negative: false, severe: false };
+    }
+    return { score: 0, reason: "neutral form comment", negative: false, severe: false };
+  }
+
+  function derivedPace(comment) {
+    const text = String(comment || "").toLowerCase();
+    if (/good beginner|quick|fast|early pace|plenty of speed/.test(text)) return "FAST";
+    if (/slow away|tardy|awkward|not do enough at the jump|take (?:her|his|their) time/.test(text)) return "SLOW";
+    if (/average early|steady beginner/.test(text)) return "AVERAGE";
+    return "UNKNOWN";
+  }
+
+  function paceHtml(recorder, speedRank, comment) {
+    if (Number.isFinite(recorder?.earlySpeed)) {
+      const rank = speedRank ? `<small>${speedRank}</small>` : "";
+      return `<span class="pace-value">${numberText(recorder.earlySpeed)}${rank}</span>`;
+    }
+    const pace = derivedPace(comment);
+    return `<span class="pace-label ${pace.toLowerCase()}">${pace}</span>`;
+  }
+
+  function boxHtml(recorder, actualBox) {
+    const rug = Number(recorder?.rug);
+    const reserve = Number.isInteger(rug) && rug !== actualBox;
+    return `<span class="trap-number${actualBox ? "" : " unknown"}">${actualBox || "-"}</span>${reserve ? `<small class="rug-note">Rug ${rug}</small>` : ""}`;
   }
 
   function runnerMetadata(runner) {
@@ -383,9 +603,9 @@
     };
   }
 
-  function runnerMetadataHtml(metadata) {
-    if (metadata.comment) {
-      return `<span class="runner-meta comment">${liveEscape(metadata.comment)}</span>`;
+  function runnerMetadataHtml(metadata, comment = "") {
+    if (comment) {
+      return `<span class="runner-meta comment">${liveEscape(comment)}</span>`;
     }
     if (metadata.summary.length) {
       return `<span class="runner-meta">${liveEscape(metadata.summary.join(" | "))}</span>`;
@@ -393,24 +613,15 @@
     return "";
   }
 
-  function metadataFooter(rankedRunners) {
+  function metadataFooter(rankedRunners, enrichment) {
+    if (["matched", "partial"].includes(enrichment?.status)) {
+      return "Summary labels combine available evidence; they are not a claim of guaranteed profit. Recorder Our $ is shown as reference only.";
+    }
     const withMetadata = rankedRunners.filter(({ metadata }) => metadata.entries.length).length;
     const withComments = rankedRunners.filter(({ metadata }) => metadata.comment).length;
     if (withComments) return `Betfair returned runner comments for ${withComments} runner${withComments === 1 ? "" : "s"}; comment keywords are folded into the signal.`;
     if (withMetadata) return `Betfair returned runner metadata for ${withMetadata} runner${withMetadata === 1 ? "" : "s"}, but no comment field was detected.`;
     return "Betfair supplied prices and runner names, but no runner metadata/comments were returned for this race.";
-  }
-
-  function commentSignal(comment) {
-    const text = String(comment || "").toLowerCase();
-    if (!text) return null;
-    if (/\b(slow|awkward|miss(?:ed)?|crowd|checked|bump|trouble|needs luck|risky|wide from inside|inside from wide)\b/.test(text)) {
-      return { label: "Comment caution", shortLabel: "caution", className: "caution" };
-    }
-    if (/\b(quick|fast|early pace|good beginner|clear run|drops? in grade|well drawn|suited|strong chance|hard to beat)\b/.test(text)) {
-      return { label: "Comment plus", shortLabel: "comment", className: "positive" };
-    }
-    return { label: "Comment note", shortLabel: "note", className: "comment" };
   }
 
   function readableMetadataKey(key) {

@@ -15,6 +15,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from recorder_enrichment import RecorderEnricher
+
 
 ROOT = Path(__file__).resolve().parent
 HOST = "127.0.0.1"
@@ -37,6 +39,13 @@ ALLOWED_ORIGINS = {
     "http://127.0.0.1:8787",
     "http://localhost:8787",
 }
+
+
+def origin_allowed(origin: str | None) -> bool:
+    if origin is None or origin in ALLOWED_ORIGINS:
+        return True
+    parsed = urllib.parse.urlparse(origin)
+    return parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost"}
 
 
 def utc_text(value: datetime | None = None) -> str:
@@ -187,9 +196,19 @@ class BetfairSession:
             raise ConnectorError("Betfair returned no market data.", 404)
         with self.lock:
             catalogue = self.catalogue.get(market_id)
+        book = books[0]
+        if self.demo:
+            enrichment = {
+                "status": "unavailable",
+                "source": "Greyhound Recorder",
+                "reason": "Recorder enrichment is disabled for the simulated market.",
+            }
+        else:
+            catalogue, enrichment = RECORDER.enrich(catalogue, book)
         return {
-            "book": books[0],
+            "book": book,
             "catalogue": catalogue,
+            "enrichment": enrichment,
             "fetchedAt": utc_text(),
             "delayed": True,
         }
@@ -298,6 +317,7 @@ class BetfairSession:
 
 
 SESSION: BetfairSession
+RECORDER = RecorderEnricher(ROOT / ".recorder-cache")
 
 
 class ConnectorHandler(SimpleHTTPRequestHandler):
@@ -313,7 +333,7 @@ class ConnectorHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         origin = self.headers.get("Origin")
-        if origin in ALLOWED_ORIGINS:
+        if origin and origin_allowed(origin):
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Private-Network", "true")
@@ -385,8 +405,7 @@ class ConnectorHandler(SimpleHTTPRequestHandler):
             self._send_json({"error": str(error)}, status)
 
     def _origin_allowed(self) -> bool:
-        origin = self.headers.get("Origin")
-        return origin is None or origin in ALLOWED_ORIGINS
+        return origin_allowed(self.headers.get("Origin"))
 
     def _read_json(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0"))

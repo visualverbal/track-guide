@@ -11,6 +11,7 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 - `betfair.js` renders the delayed Live Check interface.
 - `manual.js` parses pasted racecards and compares price/draw signals with the guide.
 - `betfair_connector.py` securely connects the local interface to Betfair.
+- `recorder_enrichment.py` locates, validates and caches Australian Greyhound Recorder long-form cards.
 - `start-betfair.cmd` launches the local interface on Windows.
 
 ## Betfair Live Check
@@ -24,6 +25,12 @@ The Betfair API does not allow direct browser requests. Live Check therefore use
 The connector sends the login directly to Betfair over HTTPS. It never writes the username, password, app key or session token to disk. Closing the connector window clears the in-memory session. The connector exposes only market discovery and price reads; it contains no bet-placement operation.
 
 The public GitHub Pages site cannot access a connector on the private loopback network because of browser security controls. Use the local URL opened by `start-betfair.cmd` for Live Check; the public site remains available for the standard track guide.
+
+### Greyhound Recorder enrichment
+
+For Australian races, the connector attempts to match the Betfair market to a Greyhound Recorder long-form card using venue, local date, race number, start time, distance and normalized runner-name overlap. A successful match adds the actual rug/box, Early Speed, Rating, Form, Comment and Recorder `Our $` reference. It never treats Betfair `sortPriority` as an Australian box.
+
+Each validated racecard is stored in `.recorder-cache/` and reused during polling. Low-confidence matches, changed source markup and source/network failures return an unavailable status while Betfair prices continue to work. Recorder `Our $` is reference data only; the Race Summary is an evidence label, not a profitability claim.
 
 ## Manual Check
 

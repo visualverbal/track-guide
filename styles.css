@@ -1248,7 +1248,7 @@ textarea {
 
 .runner-table {
   width: 100%;
-  min-width: 720px;
+  min-width: 980px;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -1268,6 +1268,12 @@ textarea {
   font-size: 9px;
   font-weight: 850;
   text-transform: uppercase;
+}
+
+.runner-table th span {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  font-size: 8px;
+  text-transform: lowercase;
 }
 
 .runner-table tbody tr:last-child td {
@@ -1305,6 +1311,67 @@ textarea {
   font-weight: 850;
 }
 
+.trap-number.unknown {
+  color: var(--muted);
+}
+
+.box-cell {
+  white-space: nowrap;
+}
+
+.box-cell .trap-number {
+  display: inline-grid;
+}
+
+.rug-note {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.pace-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 850;
+}
+
+.pace-value small {
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border-radius: 3px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.pace-label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.pace-label.fast {
+  color: var(--green);
+}
+
+.pace-label.slow {
+  color: var(--red);
+}
+
+.form-cell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.reference-price {
+  color: var(--muted);
+  font-weight: 750;
+}
+
 .price-cell {
   font-size: 13px;
   font-weight: 850;
@@ -1331,29 +1398,22 @@ textarea {
   white-space: nowrap;
 }
 
-.runner-signal.strong {
+.runner-signal.top-signal {
   border-color: color-mix(in srgb, var(--green) 50%, var(--line));
   background: color-mix(in srgb, var(--green) 10%, var(--surface));
   color: var(--green);
 }
 
-.runner-signal.favourite {
+.runner-signal.good-look {
   border-color: color-mix(in srgb, var(--amber) 50%, var(--line));
   background: color-mix(in srgb, var(--amber) 10%, var(--surface));
   color: var(--amber);
 }
 
-.runner-signal.draw {
+.runner-signal.mixed {
   border-color: color-mix(in srgb, var(--blue) 50%, var(--line));
   background: color-mix(in srgb, var(--blue) 10%, var(--surface));
   color: var(--blue);
-}
-
-.runner-signal.positive,
-.runner-signal.comment {
-  border-color: color-mix(in srgb, var(--green) 38%, var(--line));
-  background: color-mix(in srgb, var(--green) 8%, var(--surface));
-  color: var(--green);
 }
 
 .runner-signal.caution {
@@ -1373,6 +1433,113 @@ textarea {
 
 .runner-meta.comment {
   color: var(--text);
+}
+
+.race-summary {
+  margin: 14px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+}
+
+.race-summary-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line);
+}
+
+.race-summary-head strong {
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.race-summary-head span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.race-summary-list {
+  display: flex;
+  overflow-x: auto;
+}
+
+.race-summary-item {
+  flex: 1 0 190px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-left: 3px solid var(--line-strong);
+}
+
+.race-summary-item + .race-summary-item {
+  border-top: 0;
+}
+
+.race-summary-item span,
+.race-summary-item strong,
+.race-summary-item small {
+  display: block;
+}
+
+.race-summary-item span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.race-summary-item strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.race-summary-item small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.race-summary-item.top-signal {
+  border-left-color: var(--green);
+}
+
+.race-summary-item.good-look {
+  border-left-color: var(--amber);
+}
+
+.race-summary-item.mixed {
+  border-left-color: var(--blue);
+}
+
+.race-summary-item.caution {
+  border-left-color: var(--red);
+}
+
+.enrichment-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -5px 0 10px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.enrichment-status strong {
+  color: var(--text);
+}
+
+.enrichment-status.matched strong,
+.enrichment-status.matched a {
+  color: var(--green);
+}
+
+.enrichment-status.unavailable strong {
+  color: var(--amber);
 }
 
 .market-footer {
