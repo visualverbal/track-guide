@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0f14">
   <title>Greyhound Track Guide</title>
-  <link rel="stylesheet" href="styles.css?v=20260817a">
+  <link rel="stylesheet" href="styles.css?v=20260817b">
 </head>
 <body>
   <header class="topbar">
@@ -214,6 +214,28 @@
         </div>
       </form>
     </dialog>
+
+    <dialog class="betfair-dialog recorder-dialog" id="recorderDialog">
+      <form id="recorderForm">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Race form fallback</p>
+            <h2>Import Recorder Form</h2>
+          </div>
+          <button class="dialog-close" type="button" id="closeRecorder" aria-label="Close">&times;</button>
+        </div>
+        <label class="dialog-field">
+          <span>Recorder long-form page</span>
+          <textarea id="recorderPaste" rows="10" placeholder="Paste the copied long-form webpage" required></textarea>
+        </label>
+        <p class="security-note">The selected race, distance and runner names are verified before any data is used.</p>
+        <p class="form-error" id="recorderError" role="alert"></p>
+        <div class="dialog-actions">
+          <a id="openRecorder" href="https://www.thegreyhoundrecorder.com.au/form-guides/" target="_blank" rel="noreferrer">Open Recorder</a>
+          <button class="primary-button" type="submit">Import form</button>
+        </div>
+      </form>
+    </dialog>
   </main>
 
   <template id="trackTemplate">
@@ -241,7 +263,8 @@
   </template>
 
   <script src="app.js?v=20260816a"></script>
-  <script src="betfair.js?v=20260817a"></script>
+  <script src="betfair.js?v=20260817b"></script>
   <script src="manual.js?v=20260816a"></script>
 </body>
 </html>
+
