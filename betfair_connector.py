@@ -15,7 +15,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from recorder_enrichment import RecorderEnricher
+from recorder_enrichment import RecorderEnricher, RecorderUnavailable, market_context
 
 
 ROOT = Path(__file__).resolve().parent
@@ -67,6 +67,7 @@ class BetfairSession:
         self.demo = demo
         self.lock = threading.RLock()
         self.catalogue: dict[str, dict[str, Any]] = {}
+        self.books: dict[str, dict[str, Any]] = {}
 
     @property
     def connected(self) -> bool:
@@ -103,6 +104,7 @@ class BetfairSession:
             self.token = str(token)
             self.jurisdiction = jurisdiction
             self.catalogue.clear()
+            self.books.clear()
 
     def logout(self) -> None:
         if self.connected and not self.demo:
@@ -120,6 +122,7 @@ class BetfairSession:
                 self.app_key = ""
                 self.token = ""
             self.catalogue.clear()
+            self.books.clear()
 
     def status(self) -> dict[str, Any]:
         return {
@@ -197,11 +200,14 @@ class BetfairSession:
         with self.lock:
             catalogue = self.catalogue.get(market_id)
         book = books[0]
+        with self.lock:
+            self.books[market_id] = book
         if self.demo:
             enrichment = {
                 "status": "unavailable",
                 "source": "Greyhound Recorder",
                 "reason": "Recorder enrichment is disabled for the simulated market.",
+                "meetingUrl": RECORDER.client.meeting_url(market_context(catalogue)),
             }
         else:
             catalogue, enrichment = RECORDER.enrich(catalogue, book)
@@ -212,6 +218,17 @@ class BetfairSession:
             "fetchedAt": utc_text(),
             "delayed": True,
         }
+
+    def import_recorder(self, market_id: str, html: str, source_url: str = "") -> dict[str, Any]:
+        self._require_connection()
+        with self.lock:
+            catalogue = self.catalogue.get(market_id)
+            book = self.books.get(market_id)
+        try:
+            enriched, enrichment = RECORDER.import_html(catalogue, book, html, source_url or None)
+        except RecorderUnavailable as error:
+            raise ConnectorError(str(error), 400) from error
+        return {"catalogue": enriched, "enrichment": enrichment, "fetchedAt": utc_text()}
 
     def _rpc(self, exchange: str, operation: str, params: dict[str, Any]) -> Any:
         payload = {
@@ -398,6 +415,13 @@ class ConnectorHandler(SimpleHTTPRequestHandler):
             elif parsed.path == "/api/betfair/logout":
                 SESSION.logout()
                 self._send_json(SESSION.status())
+            elif parsed.path == "/api/recorder/import":
+                payload = self._read_json(max_length=5_000_000)
+                self._send_json(SESSION.import_recorder(
+                    str(payload.get("marketId", "")).strip(),
+                    str(payload.get("html", "")),
+                    str(payload.get("sourceUrl", "")).strip(),
+                ))
             else:
                 self._send_json({"error": "Not found."}, 404)
         except (ConnectorError, ValueError) as error:
@@ -407,9 +431,9 @@ class ConnectorHandler(SimpleHTTPRequestHandler):
     def _origin_allowed(self) -> bool:
         return origin_allowed(self.headers.get("Origin"))
 
-    def _read_json(self) -> dict[str, Any]:
+    def _read_json(self, max_length: int = 16_384) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length", "0"))
-        if length <= 0 or length > 16_384:
+        if length <= 0 or length > max_length:
             raise ValueError("Invalid request size.")
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
@@ -453,3 +477,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
