@@ -32,6 +32,10 @@ For Australian races, the connector attempts to match the Betfair market to a Gr
 
 Each validated racecard is stored in `.recorder-cache/` and reused during polling. Low-confidence matches, changed source markup and source/network failures return an unavailable status while Betfair prices continue to work. Recorder `Our $` is reference data only; the Race Summary is an evidence label, not a profitability claim.
 
+Recorder may reject direct automated requests with HTTP 403. The connector now retries with browser-compatible request headers and exposes an **Import form** fallback when the source still blocks access. Open the linked Recorder meeting, choose the selected race's long-form page, copy the complete webpage and paste it into the import dialog. The connector validates venue, date, race number, distance, start time and runner overlap before using or caching the imported card. A wrong or low-confidence card is rejected without affecting Betfair Live Check.
+
+The local connector must be restarted after connector code changes. Betfair credentials and copied page content remain on the local computer and are not published to GitHub Pages.
+
 ## Manual Check
 
 Manual Check runs entirely in the browser and does not need Betfair or the local connector. Select a track and paste one runner per line using a box/trap number, dog name and optional decimal or fractional odds. Examples:
@@ -91,3 +95,4 @@ Keep new entries in this shape:
 ```
 
 Use `null` only when a stat is genuinely unknown; the site displays it as `TBC`.
+
