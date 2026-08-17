@@ -3,7 +3,9 @@ import unittest
 from pathlib import Path
 
 from recorder_enrichment import (
+    BROWSER_HEADERS,
     RecorderClient,
+    RecorderEnricher,
     RecorderUnavailable,
     market_context,
     match_racecard,
@@ -108,7 +110,12 @@ class StubRecorderClient(RecorderClient):
     def _fetch_text(self, url):
         self.fetches.append(url)
         if url.endswith("/fields/"):
-            return '<a href="/form-guides/northam-20260817/auto-owls-bentley-race-9/long-form/" data-analytics="Meeting Event Selector : Race 9">9</a>'
+            return (
+                '<a href="/form-guides/northam-20260817/auto-owls-bentley-race-9/long-form/" '
+                'data-analytics="Meeting Event Selector : Race 9">9</a>'
+                '<a href="/form-guides/other-track-20260817/other-race-9/long-form/" '
+                'data-analytics="Next Race : Race 9">Other track</a>'
+            )
         return self.html
 
 
@@ -127,7 +134,46 @@ class RecorderCacheTests(unittest.TestCase):
             card = second.get_racecard(context)
             self.assertEqual(second.fetches, [])
             self.assertEqual(card["raceNumber"], 9)
+            self.assertEqual(card["sourceUrl"], SOURCE_URL)
+
+
+class RecorderImportTests(unittest.TestCase):
+    def test_browser_import_overrides_unavailable_result_and_is_cached(self):
+        catalogue, book = northam_market()
+        html = FIXTURE.read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            enricher = RecorderEnricher(Path(temporary))
+            enricher.results[catalogue["marketId"]] = (
+                catalogue,
+                {"status": "unavailable", "reason": "HTTP 403"},
+            )
+            enriched, status = enricher.import_html(catalogue, book, html, SOURCE_URL)
+            self.assertEqual(status["status"], "matched")
+            self.assertTrue(status["imported"])
+            self.assertEqual(status["matchedRunners"], 8)
+
+            reused, reused_status = enricher.enrich(catalogue, book)
+            self.assertEqual(reused_status["sourceMethod"], "Browser import")
+            by_name = {normalize_runner_name(item["runnerName"]): item for item in reused["runners"]}
+            self.assertEqual(by_name["golilogo"]["actualBox"], 5)
+            self.assertEqual(by_name["aussietrickster"]["actualBox"], 6)
+
+            cached = RecorderClient(Path(temporary)).get_racecard(market_context(catalogue))
+            self.assertEqual(cached["raceNumber"], 9)
+
+    def test_browser_import_rejects_the_wrong_race(self):
+        catalogue, book = northam_market()
+        catalogue["marketName"] = "R8 297m X65"
+        with tempfile.TemporaryDirectory() as temporary:
+            enricher = RecorderEnricher(Path(temporary))
+            with self.assertRaises(RecorderUnavailable):
+                enricher.import_html(catalogue, book, FIXTURE.read_text(encoding="utf-8"), SOURCE_URL)
+
+    def test_automatic_fetch_uses_browser_compatible_headers(self):
+        self.assertIn("Mozilla/5.0", BROWSER_HEADERS["User-Agent"])
+        self.assertIn("text/html", BROWSER_HEADERS["Accept"])
 
 
 if __name__ == "__main__":
     unittest.main()
+
