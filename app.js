@@ -69,7 +69,7 @@ function setupControls() {
   for (const strategy of strategies) {
     const option = document.createElement("option");
     option.value = strategy;
-    option.textContent = profileLabel(strategy);
+    option.textContent = strategy;
     els.strategyFilter.append(option);
   }
 
@@ -103,12 +103,12 @@ function setupControls() {
   });
 
   const strategyItems = state.data.strategyLegend.map((item) => (
-    `<div class="legend-item"><strong>${escapeHtml(profileLabel(item.key))}</strong>: historical track behaviour only; it does not establish value for an individual runner.</div>`
+    `<div class="legend-item"><strong>${escapeHtml(item.key)}</strong>: ${escapeHtml(item.meaning)}</div>`
   ));
   strategyItems.push(
-    '<div class="legend-item"><strong>Sample confidence</strong>: High uses 1,000+ favourite races, medium 300-999, and low fewer than 300. This is confidence in the track statistic, not a runner prediction.</div>',
+    '<div class="legend-item"><strong>Confidence</strong>: High uses 1,000+ favourite races, medium 300-999, and low fewer than 300.</div>',
     '<div class="legend-item"><strong>Draw metrics</strong>: AU shows the win rate for all runners from that box. UK and Ireland show the favourite win rate from that trap.</div>',
-    '<div class="legend-item"><strong>Value gate</strong>: Manual and Live Value require complete runner probabilities, commission-adjusted edge and sufficient evidence before returning a bet decision.</div>'
+    '<div class="legend-item"><strong>Period</strong>: Each card and table row shows the source window used for its displayed statistics.</div>'
   );
   els.legend.innerHTML = strategyItems.join("");
 }
@@ -213,7 +213,7 @@ function renderTrack(track) {
   const confidence = confidenceFor(track);
   node.classList.add(badgeClass(track.strategy));
   node.querySelector(".country").textContent = track.country;
-  node.querySelector(".strategy").textContent = profileLabel(track.strategy);
+  node.querySelector(".strategy").textContent = track.strategy;
   node.querySelector("h2").textContent = track.name;
   node.querySelector(".headline").textContent = track.headline;
 
@@ -232,7 +232,7 @@ function renderTrack(track) {
   ].join("");
 
   const rule = node.querySelector(".rule");
-  rule.innerHTML = `<span class="badge ${badgeClass(track.strategy)}">Context ${escapeHtml(track.grade || track.strategy)}</span><br><strong>Historical note:</strong> ${escapeHtml(track.rule)}`;
+  rule.innerHTML = `<span class="badge ${badgeClass(track.strategy)}">${escapeHtml(track.grade || track.strategy)}</span><br>${escapeHtml(track.rule)}`;
 
   const distances = node.querySelector(".distances");
   distances.innerHTML = (track.distances || []).map((distance) => (
@@ -262,7 +262,7 @@ function renderTableRow(track) {
   row.innerHTML = `
     <td>
       <strong class="table-track">${escapeHtml(track.name)}</strong>
-      <span class="table-sub">${escapeHtml(track.country)} | ${escapeHtml(profileLabel(track.strategy))}</span>
+      <span class="table-sub">${escapeHtml(track.country)} | ${escapeHtml(track.strategy)}</span>
     </td>
     <td>${confidenceBadge(confidence)}</td>
     <td><strong class="table-rate">${percent(track.favouriteWinRate)}</strong></td>
@@ -357,19 +357,6 @@ function badgeClass(strategy) {
   if (strategy.includes("TRAP")) return "trap";
   if (strategy.includes("RESEARCH")) return "research";
   return "caution";
-}
-
-function profileLabel(strategy) {
-  const labels = {
-    "A+ FOLLOW": "High favourite reliability",
-    "A FOLLOW": "Solid favourite reliability",
-    "B / CHECK FORM": "Mixed favourite reliability",
-    "BOX + $": "Draw-sensitive",
-    "BOX OVERRIDE": "Draw-sensitive",
-    "TRAP-SPECIFIC": "Trap-sensitive",
-    "RESEARCH": "Research only"
-  };
-  return labels[strategy] || strategy;
 }
 
 function applyTheme() {

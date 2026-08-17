@@ -1,4 +1,4 @@
-# Greyhound Track & Value Guide
+# Greyhound Track Guide
 
 Static GitHub Pages site for the greyhound track notes from the ChatGPT conversation.
 
@@ -8,12 +8,10 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 - `tracks.json` contains all track data, country grouping, strategy labels, source profiles and notes.
 - `styles.css` controls layout and presentation.
 - `app.js` renders filters, card/table views, confidence labels, starred tracks and local browser notes.
-- `value.js` is the shared commission, edge, decision and staking engine.
-- `betfair.js` renders the delayed Live Value interface.
-- `manual.js` parses pasted racecards and runs Manual Value assessments.
+- `betfair.js` renders the delayed Live Check interface.
+- `manual.js` parses pasted racecards and compares price/draw signals with the guide.
 - `betfair_connector.py` securely connects the local interface to Betfair.
 - `start-betfair.cmd` launches the local interface on Windows.
-- `tests/value.test.js` checks back, lay, probability-gate and staking calculations.
 
 ## Betfair Live Check
 
@@ -37,24 +35,7 @@ Box 2 Blue Lantern 4.20
 T3 Final Turn 5/1
 ```
 
-The parsed names and prices remain editable. The checker identifies favourite/draw candidates and shows the stored distance context. Enter a model win probability for every runner, plus optional lay prices, to calculate commission-adjusted break-even probabilities, fair odds, expected edge and a decision.
-
-## Value Decisions
-
-- `NO BET` is the default.
-- Runner probabilities must be complete and total between 98% and 102%.
-- Track favourite/draw statistics and runner comments are context only; they never create a bet by themselves.
-- The default safety margin requires at least 5% expected return after commission.
-- Unverified probabilities can return `PAPER ONLY`, but never a live `BACK` or `LAY` decision.
-- `BACK` and `LAY` require the probability source to be marked as a validated out-of-sample model.
-- Only the strongest qualifying position is selected in each race.
-- When a bankroll is supplied, staking uses one-eighth Kelly and is capped at 0.5% bankroll risk by default. Lay sizing is shown as maximum liability.
-
-Betfair commission varies by market. Set the rate from that market's Rules before assessing value. The calculations approximate a single position; final commission is charged by Betfair on net market winnings.
-
-## Runner Form Roadmap
-
-The next modelling phase is to import historical runner form, sectionals, grade, days between runs and structured trouble/pace comments. It must be trained and tested chronologically, then calibrated against Betfair Starting Price before its probabilities can pass the validated-model gate. API credentials must remain in the local connector and must never be committed to this public repository.
+The parsed names and odds remain editable. The checker identifies the favourite or joint favourites, highlights the guide's strongest draw and shows any stored distance-specific note. The current version compares race price/draw information with track-level statistics; it does not yet contain dog-level historical form.
 
 ## Data Basis
 
