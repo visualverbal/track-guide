@@ -220,18 +220,18 @@
         <div class="dialog-head">
           <div>
             <p class="eyebrow">Race form fallback</p>
-            <h2>Import Recorder Form</h2>
+            <h2 id="formImportTitle">Import Race Form</h2>
           </div>
           <button class="dialog-close" type="button" id="closeRecorder" aria-label="Close">&times;</button>
         </div>
         <label class="dialog-field">
-          <span>Recorder long-form page</span>
-          <textarea id="recorderPaste" rows="10" placeholder="Paste the copied long-form webpage" required></textarea>
+          <span id="formImportLabel">Complete racecard page</span>
+          <textarea id="recorderPaste" rows="10" placeholder="Paste the copied racecard webpage" required></textarea>
         </label>
         <p class="security-note">The selected race, distance and runner names are verified before any data is used.</p>
         <p class="form-error" id="recorderError" role="alert"></p>
         <div class="dialog-actions">
-          <a id="openRecorder" href="https://www.thegreyhoundrecorder.com.au/form-guides/" target="_blank" rel="noreferrer">Open Recorder</a>
+          <a id="openRecorder" href="https://www.thegreyhoundrecorder.com.au/form-guides/" target="_blank" rel="noreferrer">Open source</a>
           <button class="primary-button" type="submit">Import form</button>
         </div>
       </form>
@@ -263,7 +263,7 @@
   </template>
 
   <script src="app.js?v=20260816a"></script>
-  <script src="betfair.js?v=20260817c"></script>
+  <script src="betfair.js?v=20260817d"></script>
   <script src="manual.js?v=20260816a"></script>
 </body>
 </html>
