@@ -1380,6 +1380,13 @@ textarea {
   font-weight: 750;
 }
 
+.form-cell small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
 .reference-price {
   color: var(--muted);
   font-weight: 750;
