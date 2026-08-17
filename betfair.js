@@ -12,6 +12,7 @@
     selectedMarketId: null,
     recorderClipboardHtml: "",
     recorderSourceUrl: "",
+    formImportSource: "recorder",
     bookTimer: null,
     clockTimer: null,
     mode: localStorage.getItem("greyhoundGuide.mode") || "guide"
@@ -39,6 +40,8 @@
     recorderForm: document.querySelector("#recorderForm"),
     recorderPaste: document.querySelector("#recorderPaste"),
     recorderLink: document.querySelector("#openRecorder"),
+    formImportTitle: document.querySelector("#formImportTitle"),
+    formImportLabel: document.querySelector("#formImportLabel"),
     recorderClose: document.querySelector("#closeRecorder"),
     recorderError: document.querySelector("#recorderError")
   };
@@ -63,8 +66,8 @@
       if (!liveEls.recorderPaste.value.trim()) liveState.recorderClipboardHtml = "";
     });
     liveEls.raceDetail.addEventListener("click", (event) => {
-      const button = event.target.closest("button[data-import-recorder]");
-      if (button) openRecorderImport(button.dataset.recorderUrl || "");
+      const button = event.target.closest("button[data-import-form]");
+      if (button) openRecorderImport(button.dataset.sourceKey || "recorder", button.dataset.sourceUrl || "");
     });
     liveEls.raceList.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-market-id]");
@@ -179,12 +182,19 @@
     }
   }
 
-  function openRecorderImport(sourceUrl) {
+  function openRecorderImport(sourceKey, sourceUrl) {
+    const atr = sourceKey === "atr";
     liveState.recorderClipboardHtml = "";
     liveState.recorderSourceUrl = sourceUrl;
+    liveState.formImportSource = atr ? "atr" : "recorder";
     liveEls.recorderPaste.value = "";
     liveEls.recorderError.textContent = "";
-    liveEls.recorderLink.href = sourceUrl || "https://www.thegreyhoundrecorder.com.au/form-guides/";
+    liveEls.formImportTitle.textContent = atr ? "Import ATR Form" : "Import Recorder Form";
+    liveEls.formImportLabel.textContent = atr ? "ATR racecard page" : "Recorder long-form page";
+    liveEls.recorderLink.textContent = atr ? "Open At The Races" : "Open Recorder";
+    liveEls.recorderLink.href = sourceUrl || (atr
+      ? "https://greyhounds.attheraces.com/racecards/today"
+      : "https://www.thegreyhoundrecorder.com.au/form-guides/");
     liveEls.recorderDialog.showModal();
   }
 
@@ -201,7 +211,7 @@
     submit.disabled = true;
     submit.textContent = "Checking...";
     try {
-      await api("/api/recorder/import", {
+      await api(`/api/${liveState.formImportSource}/import`, {
         method: "POST",
         body: JSON.stringify({
           marketId: liveState.selectedMarketId,
@@ -315,7 +325,7 @@
         back,
         lay,
         metadata,
-        recorder: runner.recorder || null,
+        recorder: runner.formData || runner.atr || runner.recorder || null,
         actualBox: actualBoxFor(runner, market)
       };
     });
@@ -340,7 +350,9 @@
     const rows = rankedRunners.map(({ runner, priceData, back, lay, signal, metadata, recorder, actualBox, speedRank }, index) => {
       const comment = recorder?.comment || metadata.comment;
       const isHighestRating = highestRating !== null && Number(recorder?.rating) === highestRating;
-      const isFastestEarly = fastestEarlySpeed !== null && Number(recorder?.earlySpeed) === fastestEarlySpeed;
+      const isFastestEarly = (fastestEarlySpeed !== null && Number(recorder?.earlySpeed) === fastestEarlySpeed)
+        || Number(recorder?.earlyRank) === 1;
+      const ratingLabel = recorder?.ratingLabel || "Recorder rating";
       const rowClasses = [
         index === 0 ? "priority-lead" : "",
         isHighestRating ? "highest-rating" : "",
@@ -354,9 +366,9 @@
             <strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong>
             ${runnerMetadataHtml(metadata, comment)}
           </td>
-          <td class="${isFastestEarly ? "early-speed-leader" : ""}" title="${isFastestEarly ? "Fastest Early Speed in this race" : ""}">${paceHtml(recorder, speedRank, comment)}</td>
-          <td class="${isHighestRating ? "rating-leader" : ""}" title="${isHighestRating ? "Highest Recorder rating in this race" : ""}">${numberText(recorder?.rating)}</td>
-          <td class="form-cell">${liveEscape(recorder?.form || "-")}</td>
+          <td class="${isFastestEarly ? "early-speed-leader" : ""}" title="${isFastestEarly ? "Strongest supported early-pace evidence in this race" : ""}">${paceHtml(recorder, speedRank, comment)}</td>
+          <td class="${isHighestRating ? "rating-leader" : ""}" title="${isHighestRating ? `Highest ${liveEscape(ratingLabel)} in this race` : ""}">${numberText(recorder?.rating)}</td>
+          <td class="form-cell">${liveEscape(recorder?.form || "-")}${Number.isFinite(recorder?.quickForm) ? `<small>QF ${numberText(recorder.quickForm)}%</small>` : ""}</td>
           <td class="price-cell back-price">${priceText(back)}</td>
           <td class="price-cell lay-price">${priceText(lay)}</td>
           <td class="reference-price">${priceText(recorder?.ourPrice)}</td>
@@ -381,7 +393,7 @@
       ${enrichmentStatus(enrichment)}
       <div class="runner-table-wrap">
         <table class="runner-table">
-          <thead><tr><th>Priority</th><th>Box</th><th>Greyhound</th><th>Early</th><th>Rtg</th><th>Form</th><th>Back</th><th>Lay</th><th>Our $ <span>ref</span></th><th>Signal</th></tr></thead>
+          <thead><tr><th>Priority</th><th>Box</th><th>Greyhound</th><th>Early</th><th title="${enrichment?.source === "At The Races" ? "ATR Top Speed" : "Recorder Rating"}">${enrichment?.source === "At The Races" ? "Top spd" : "Rtg"}</th><th>Form</th><th>Back</th><th>Lay</th><th>Our $ <span>ref</span></th><th>Signal</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
@@ -397,7 +409,7 @@
     if (!rankedRunners.length) return "";
     const evidenceAvailable = ["matched", "partial"].includes(enrichment?.status);
     const intro = evidenceAvailable
-      ? "Recorder form ranked with market and Track Guide context"
+      ? `${enrichment.source} form ranked with market and Track Guide context`
       : "Market and available Betfair evidence only";
     const items = rankedRunners.slice(0, 4).map(({ runner, signal }) => `
       <div class="race-summary-item ${signal.className}">
@@ -416,23 +428,27 @@
 
   function enrichmentStatus(enrichment) {
     if (!enrichment || enrichment.status === "not-applicable") return "";
+    const sourceName = enrichment.source || "Race form";
     if (["matched", "partial"].includes(enrichment.status)) {
       const sourceLink = enrichment.sourceUrl
-        ? `<a href="${liveEscape(enrichment.sourceUrl)}" target="_blank" rel="noreferrer">Greyhound Recorder</a>`
-        : "Greyhound Recorder";
+        ? `<a href="${liveEscape(enrichment.sourceUrl)}" target="_blank" rel="noreferrer">${liveEscape(sourceName)}</a>`
+        : liveEscape(sourceName);
+      const detail = enrichment.sourceKey === "atr"
+        ? `Actual traps, form, Top Speed, Quick Form and expert view from ${sourceLink}. Top Speed is not early speed.`
+        : `Actual boxes and form from ${sourceLink}. Our $ is reference only.`;
       return `
         <div class="enrichment-status matched">
           <strong>${liveEscape(enrichment.matchedRunners)}/${liveEscape(enrichment.betfairActiveRunners)} runners matched</strong>
-          <span>Actual boxes and form from ${sourceLink}. Our $ is reference only.</span>
+          <span>${detail}</span>
         </div>
       `;
     }
     const importButton = enrichment.meetingUrl
-      ? `<button class="recorder-import-button" type="button" data-import-recorder data-recorder-url="${liveEscape(enrichment.meetingUrl)}">Import form</button>`
+      ? `<button class="recorder-import-button" type="button" data-import-form data-source-key="${liveEscape(enrichment.sourceKey || "recorder")}" data-source-url="${liveEscape(enrichment.meetingUrl)}">Import form</button>`
       : "";
     return `
       <div class="enrichment-status unavailable">
-        <strong>Recorder form unavailable</strong>
+        <strong>${liveEscape(sourceName)} form unavailable</strong>
         <span>${liveEscape(enrichment.reason || "The source could not be matched safely.")} Betfair Live Check remains active.</span>
         ${importButton}
       </div>
@@ -475,7 +491,8 @@
   }
 
   function actualBoxFor(runner, market) {
-    const value = Number(runner.recorder?.actualBox ?? runner.actualBox);
+    const formData = runner.formData || runner.atr || runner.recorder;
+    const value = Number(formData?.actualBox ?? runner.actualBox);
     if (Number.isInteger(value) && value >= 1 && value <= 10) return value;
     if (market.event?.countryCode === "AU") return null;
     const fallback = Number(runner.sortPriority);
@@ -485,6 +502,10 @@
   function scoreRace(runners, favourite, guide) {
     const speedOrder = rankedValues(runners, (item) => item.recorder?.earlySpeed);
     const ratingOrder = rankedValues(runners, (item) => item.recorder?.rating);
+    const explicitSpeedRanks = runners
+      .map((item) => Number(item.recorder?.earlyRank))
+      .filter((value) => Number.isInteger(value) && value > 0);
+    const speedEvidenceSize = speedOrder.size || (explicitSpeedRanks.length ? Math.max(...explicitSpeedRanks) : 0);
     const marketOrder = [...runners]
       .filter((item) => Number.isFinite(item.back))
       .sort((a, b) => a.back - b.back);
@@ -495,7 +516,10 @@
     return runners.map((item) => {
       let score = 0;
       const evidence = [];
-      const speedRank = speedOrder.get(String(item.runner.selectionId)) || null;
+      const suppliedSpeedRank = Number(item.recorder?.earlyRank);
+      const numericSpeedRank = speedOrder.get(String(item.runner.selectionId)) || null;
+      const speedRank = numericSpeedRank
+        || (Number.isInteger(suppliedSpeedRank) && suppliedSpeedRank > 0 ? suppliedSpeedRank : null);
       const ratingRank = ratingOrder.get(String(item.runner.selectionId)) || null;
       const marketRank = marketRanks.get(String(item.runner.selectionId)) || null;
       const fieldSize = runners.length;
@@ -507,16 +531,19 @@
       if (speedRank) {
         if (speedRank === 1) {
           score += 4;
-          evidence.push("fastest early speed");
+          evidence.push(numericSpeedRank ? "fastest early speed" : "first ATR early leader");
         } else if (speedRank <= Math.max(2, Math.ceil(fieldSize / 4))) {
           score += 3;
-          evidence.push(`early speed rank ${speedRank}/${speedOrder.size}`);
-        } else if (speedRank <= Math.ceil(speedOrder.size / 2)) {
+          evidence.push(`early pace rank ${speedRank}/${speedEvidenceSize}`);
+        } else if (!numericSpeedRank) {
           score += 1;
-          evidence.push(`above-median early speed`);
-        } else if (speedRank === speedOrder.size) {
+          evidence.push(`ATR early leader rank ${speedRank}/${speedEvidenceSize}`);
+        } else if (speedRank <= Math.ceil(speedEvidenceSize / 2)) {
+          score += 1;
+          evidence.push(`above-median early pace`);
+        } else if (numericSpeedRank && speedRank === speedEvidenceSize) {
           score -= 2;
-          evidence.push("lowest early speed");
+          evidence.push("lowest ranked early pace");
         }
       } else {
         const pace = derivedPace(comment);
@@ -530,15 +557,16 @@
       }
 
       if (ratingRank) {
+        const ratingName = item.recorder?.ratingLabel || "Recorder rating";
         if (ratingRank === 1) {
           score += 3;
-          evidence.push("top Recorder rating");
+          evidence.push(`top ${ratingName}`);
         } else if (ratingRank <= Math.min(3, ratingOrder.size)) {
           score += 2;
           evidence.push(`rating rank ${ratingRank}/${ratingOrder.size}`);
         } else if (ratingRank === ratingOrder.size) {
           score -= 1;
-          evidence.push("lowest Recorder rating");
+          evidence.push(`lowest ${ratingName}`);
         }
       }
 
@@ -616,7 +644,7 @@
     if (/not do enough at the jump|slow away|tardy|take (?:her|his|their) time|awkward|early pace concern/.test(text)) {
       return { score: -3, reason: "negative early-pace comment", negative: true, severe: true };
     }
-    if (/doesn.t always|harder on (?:his|her|their) chances|challenge is to repeat|too risky|happy to look elsewhere|needs luck|poor form/.test(text)) {
+    if (/doesn.t always|harder on (?:his|her|their) chances|challenge is to repeat|too risky|happy to look elsewhere|needs luck|poor form|won.t be easy|traffic problems|isn.t the way to any riches|hard to recommend|plenty to find/.test(text)) {
       return { score: -2, reason: "negative form/draw comment", negative: true, severe: false };
     }
     if (/chance|consider|suited|well drawn|good beginner|quick|fast/.test(text)) {
@@ -637,6 +665,9 @@
     if (Number.isFinite(recorder?.earlySpeed)) {
       const rank = speedRank ? `<small>${speedRank}</small>` : "";
       return `<span class="pace-value">${numberText(recorder.earlySpeed)}${rank}</span>`;
+    }
+    if (Number.isInteger(Number(recorder?.earlyRank))) {
+      return `<span class="pace-value pace-evidence">LEADER<small>${numberText(recorder.earlyRank)}</small></span>`;
     }
     const pace = derivedPace(comment);
     return `<span class="pace-label ${pace.toLowerCase()}">${pace}</span>`;
@@ -693,6 +724,9 @@
 
   function metadataFooter(rankedRunners, enrichment) {
     if (["matched", "partial"].includes(enrichment?.status)) {
+      if (enrichment.sourceKey === "atr") {
+        return "Summary labels combine available evidence; they are not a claim of guaranteed profit. ATR Top Speed is a performance rating, not Early Speed.";
+      }
       return "Summary labels combine available evidence; they are not a claim of guaranteed profit. Recorder Our $ is shown as reference only.";
     }
     const withMetadata = rankedRunners.filter(({ metadata }) => metadata.entries.length).length;
