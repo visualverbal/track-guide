@@ -15,6 +15,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from atr_enrichment import AtrEnricher, AtrUnavailable
 from recorder_enrichment import RecorderEnricher, RecorderUnavailable, market_context
 
 
@@ -210,7 +211,17 @@ class BetfairSession:
                 "meetingUrl": RECORDER.client.meeting_url(market_context(catalogue)),
             }
         else:
-            catalogue, enrichment = RECORDER.enrich(catalogue, book)
+            country = str((catalogue.get("event") or {}).get("countryCode") or "").upper()
+            if country == "AU":
+                catalogue, enrichment = RECORDER.enrich(catalogue, book)
+            elif country in {"GB", "GBR", "UK", "IE", "IRL", "IRE"}:
+                catalogue, enrichment = ATR.enrich(catalogue, book)
+            else:
+                enrichment = {
+                    "status": "not-applicable",
+                    "source": "Race form",
+                    "reason": "No supported form source is configured for this country.",
+                }
         return {
             "book": book,
             "catalogue": catalogue,
@@ -227,6 +238,17 @@ class BetfairSession:
         try:
             enriched, enrichment = RECORDER.import_html(catalogue, book, html, source_url or None)
         except RecorderUnavailable as error:
+            raise ConnectorError(str(error), 400) from error
+        return {"catalogue": enriched, "enrichment": enrichment, "fetchedAt": utc_text()}
+
+    def import_atr(self, market_id: str, html: str, source_url: str = "") -> dict[str, Any]:
+        self._require_connection()
+        with self.lock:
+            catalogue = self.catalogue.get(market_id)
+            book = self.books.get(market_id)
+        try:
+            enriched, enrichment = ATR.import_html(catalogue, book, html, source_url or None)
+        except AtrUnavailable as error:
             raise ConnectorError(str(error), 400) from error
         return {"catalogue": enriched, "enrichment": enrichment, "fetchedAt": utc_text()}
 
@@ -335,6 +357,7 @@ class BetfairSession:
 
 SESSION: BetfairSession
 RECORDER = RecorderEnricher(ROOT / ".recorder-cache")
+ATR = AtrEnricher(ROOT / ".atr-cache")
 
 
 class ConnectorHandler(SimpleHTTPRequestHandler):
@@ -418,6 +441,13 @@ class ConnectorHandler(SimpleHTTPRequestHandler):
             elif parsed.path == "/api/recorder/import":
                 payload = self._read_json(max_length=5_000_000)
                 self._send_json(SESSION.import_recorder(
+                    str(payload.get("marketId", "")).strip(),
+                    str(payload.get("html", "")),
+                    str(payload.get("sourceUrl", "")).strip(),
+                ))
+            elif parsed.path == "/api/atr/import":
+                payload = self._read_json(max_length=5_000_000)
+                self._send_json(SESSION.import_atr(
                     str(payload.get("marketId", "")).strip(),
                     str(payload.get("html", "")),
                     str(payload.get("sourceUrl", "")).strip(),
