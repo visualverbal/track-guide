@@ -328,18 +328,34 @@
       return priceDifference || a.runner.sortPriority - b.runner.sortPriority;
     });
 
+    const availableRatings = rankedRunners
+      .map(({ recorder }) => Number(recorder?.rating))
+      .filter(Number.isFinite);
+    const availableEarlySpeeds = rankedRunners
+      .map(({ recorder }) => Number(recorder?.earlySpeed))
+      .filter(Number.isFinite);
+    const highestRating = availableRatings.length ? Math.max(...availableRatings) : null;
+    const fastestEarlySpeed = availableEarlySpeeds.length ? Math.max(...availableEarlySpeeds) : null;
+
     const rows = rankedRunners.map(({ runner, priceData, back, lay, signal, metadata, recorder, actualBox, speedRank }, index) => {
       const comment = recorder?.comment || metadata.comment;
+      const isHighestRating = highestRating !== null && Number(recorder?.rating) === highestRating;
+      const isFastestEarly = fastestEarlySpeed !== null && Number(recorder?.earlySpeed) === fastestEarlySpeed;
+      const rowClasses = [
+        index === 0 ? "priority-lead" : "",
+        isHighestRating ? "highest-rating" : "",
+        isFastestEarly ? "fastest-early" : ""
+      ].filter(Boolean).join(" ");
       return `
-        <tr class="${index === 0 ? "priority-lead" : ""}">
+        <tr class="${rowClasses}">
           <td><span class="priority-rank">${index + 1}</span></td>
           <td class="box-cell">${boxHtml(recorder, actualBox)}</td>
           <td>
             <strong>${liveEscape(cleanRunnerName(runner.runnerName))}</strong>
             ${runnerMetadataHtml(metadata, comment)}
           </td>
-          <td>${paceHtml(recorder, speedRank, comment)}</td>
-          <td>${numberText(recorder?.rating)}</td>
+          <td class="${isFastestEarly ? "early-speed-leader" : ""}" title="${isFastestEarly ? "Fastest Early Speed in this race" : ""}">${paceHtml(recorder, speedRank, comment)}</td>
+          <td class="${isHighestRating ? "rating-leader" : ""}" title="${isHighestRating ? "Highest Recorder rating in this race" : ""}">${numberText(recorder?.rating)}</td>
           <td class="form-cell">${liveEscape(recorder?.form || "-")}</td>
           <td class="price-cell back-price">${priceText(back)}</td>
           <td class="price-cell lay-price">${priceText(lay)}</td>
