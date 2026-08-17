@@ -52,4 +52,33 @@ const fastest = scored.find((item) => item.runner.selectionId === 2);
 assert.equal(favourite.signal.label, "CAUTION", "negative pace/form must downgrade the favourite");
 assert.equal(fastest.speedRank, 1, "numeric Early Speed must be ranked within the race");
 assert.match(fastest.signal.label, /TOP SIGNAL|GOOD LOOK/);
+
+const atrRunners = [
+  {
+    runner: { selectionId: 11, runnerName: "ATR Leader" },
+    back: 3.0,
+    actualBox: 6,
+    recorder: { earlyRank: 1, rating: 99, ratingLabel: "Top Speed", form: "61563", comment: "" },
+    metadata: { comment: "" }
+  },
+  {
+    runner: { selectionId: 12, runnerName: "ATR Second" },
+    back: 2.5,
+    actualBox: 3,
+    recorder: { earlyRank: 2, rating: 96, ratingLabel: "Top Speed", form: "41315", comment: "" },
+    metadata: { comment: "" }
+  },
+  {
+    runner: { selectionId: 13, runnerName: "ATR Third" },
+    back: 4.0,
+    actualBox: 4,
+    recorder: { earlyRank: 3, rating: 98, ratingLabel: "Top Speed", form: "56122", comment: "" },
+    metadata: { comment: "" }
+  }
+];
+const atrScored = context.scoreRace(atrRunners, { id: 12, price: 2.5 }, null);
+assert.equal(atrScored.find((item) => item.runner.selectionId === 11).speedRank, 1);
+assert.match(atrScored.find((item) => item.runner.selectionId === 11).signal.reason, /ATR early leader/);
+assert.doesNotMatch(atrScored.find((item) => item.runner.selectionId === 13).signal.reason, /lowest ranked/);
 console.log("Race scoring validation passed.");
+
