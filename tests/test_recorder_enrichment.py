@@ -88,6 +88,15 @@ class RecorderParsingTests(unittest.TestCase):
         self.assertEqual(by_name["golilogo"]["sortPriority"], 8)
         self.assertEqual(by_name["golilogo"]["actualBox"], 5)
 
+    def test_accepts_schedule_change_when_race_identity_and_runners_match(self):
+        catalogue, book = northam_market()
+        catalogue["marketStartTime"] = "2026-08-17T11:00:00Z"
+        _enriched, status = match_racecard(catalogue, book, market_context(catalogue), self.card)
+        self.assertEqual(status["matchedRunners"], 8)
+        self.assertEqual(status["startDifferenceMinutes"], 30)
+        self.assertTrue(status["scheduleChanged"])
+        self.assertLess(status["confidence"], 1)
+
     def test_rejects_low_runner_overlap(self):
         catalogue, book = northam_market()
         catalogue["runners"] = catalogue["runners"][:2] + [
