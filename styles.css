@@ -1284,6 +1284,19 @@ textarea {
   background: color-mix(in srgb, var(--green) 5%, transparent);
 }
 
+.runner-table td.early-speed-leader {
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--green);
+  color: var(--green);
+}
+
+.runner-table td.rating-leader {
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--amber);
+  color: var(--amber);
+  font-weight: 900;
+}
+
 .priority-rank {
   display: grid;
   width: 28px;
