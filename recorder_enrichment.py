@@ -493,8 +493,6 @@ def match_racecard(
 
     if context.get("startMinutes") is not None and card.get("startMinutes") is not None:
         start_difference = _clock_difference(context["startMinutes"], card["startMinutes"])
-        if start_difference > 15:
-            raise RecorderUnavailable("Recorder and Betfair start times differed by more than 15 minutes.")
     else:
         start_difference = None
 
@@ -515,6 +513,13 @@ def match_racecard(
     minimum_count = min(3, len(betfair_active))
     if overlap < MIN_RUNNER_OVERLAP or len(matches) < minimum_count:
         raise RecorderUnavailable(f"Recorder runner-name overlap was too low ({len(matches)}/{denominator}).")
+
+    schedule_changed = start_difference is not None and start_difference > 15
+    if schedule_changed and (overlap < 0.8 or len(matches) < min(4, len(betfair_active))):
+        raise RecorderUnavailable(
+            "Recorder and Betfair start times differed by more than 15 minutes, "
+            "and runner overlap was not strong enough to confirm a schedule change."
+        )
 
     enriched = copy.deepcopy(catalogue)
     for runner in enriched.get("runners", []):
@@ -543,12 +548,13 @@ def match_racecard(
         "status": "matched" if overlap == 1 else "partial",
         "source": SOURCE_NAME,
         "sourceUrl": card.get("sourceUrl"),
-        "confidence": round(0.85 + 0.15 * overlap, 3),
+        "confidence": round((0.8 if schedule_changed else 0.85) + 0.15 * overlap, 3),
         "matchedRunners": len(matches),
         "betfairActiveRunners": len(betfair_active),
         "recorderActiveRunners": len(recorder_active),
         "runnerOverlap": round(overlap, 3),
         "startDifferenceMinutes": start_difference,
+        "scheduleChanged": schedule_changed,
         "unmatchedBetfair": unmatched_betfair,
         "unmatchedRecorder": unmatched_recorder,
         "fetchedAt": card.get("fetchedAt"),
