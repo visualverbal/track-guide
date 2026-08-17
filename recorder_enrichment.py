@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import http.cookiejar
 import json
 import re
 import threading
@@ -10,7 +11,7 @@ import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,18 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 SOURCE_NAME = "Greyhound Recorder"
 SOURCE_ROOT = "https://www.thegreyhoundrecorder.com.au"
-USER_AGENT = "TrackGuideRecorderEnrichment/0.1"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/140.0.0.0 Safari/537.36"
+)
+BROWSER_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-AU,en;q=0.9",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "User-Agent": USER_AGENT,
+}
 MIN_RUNNER_OVERLAP = 0.80
 
 VENUE_TIMEZONES = {
@@ -35,6 +47,17 @@ VENUE_TIMEZONES = {
     "townsville": "Australia/Brisbane",
     "launceston": "Australia/Hobart",
 }
+
+FALLBACK_TIMEZONE_MINUTES = {
+    "Australia/Perth": 8 * 60,
+    "Australia/Darwin": 9 * 60 + 30,
+    "Australia/Brisbane": 10 * 60,
+    "Australia/Adelaide": 9 * 60 + 30,
+    "Australia/Sydney": 10 * 60,
+    "Australia/Melbourne": 10 * 60,
+    "Australia/Hobart": 10 * 60,
+}
+DST_TIMEZONES = {"Australia/Adelaide", "Australia/Sydney", "Australia/Melbourne", "Australia/Hobart"}
 
 
 class RecorderUnavailable(RuntimeError):
@@ -87,6 +110,22 @@ def _clock_difference(left: int, right: int) -> int:
     return min(difference, 24 * 60 - difference)
 
 
+def _first_sunday(year: int, month: int) -> datetime:
+    first = datetime(year, month, 1)
+    return first + timedelta(days=(6 - first.weekday()) % 7)
+
+
+def _fallback_timezone(timezone_name: str, start: datetime) -> timezone:
+    minutes = FALLBACK_TIMEZONE_MINUTES.get(timezone_name, 10 * 60)
+    if timezone_name in DST_TIMEZONES:
+        date = start.date()
+        dst_start = _first_sunday(date.year, 10).date()
+        dst_end = _first_sunday(date.year, 4).date()
+        if date >= dst_start or date < dst_end:
+            minutes += 60
+    return timezone(timedelta(minutes=minutes))
+
+
 def market_context(catalogue: dict[str, Any]) -> dict[str, Any]:
     event = catalogue.get("event") or {}
     venue = event.get("venue") or event.get("name") or ""
@@ -106,7 +145,7 @@ def market_context(catalogue: dict[str, Any]) -> dict[str, Any]:
         try:
             local_start = start.astimezone(ZoneInfo(str(timezone_name)))
         except (ZoneInfoNotFoundError, ValueError):
-            pass
+            local_start = start.astimezone(_fallback_timezone(str(timezone_name), start))
 
     return {
         "countryCode": str(event.get("countryCode") or "").upper(),
@@ -135,7 +174,7 @@ class RecorderHtmlParser(HTMLParser):
         self.depth = 0
         self.captures: list[dict[str, Any]] = []
         self.headers: dict[str, str] = {}
-        self.links: dict[int, str] = {}
+        self.links: list[tuple[int, str]] = []
         self.rows: list[dict[str, Any]] = []
         self.row: dict[str, Any] | None = None
         self.current_cell: list[str] | None = None
@@ -151,7 +190,7 @@ class RecorderHtmlParser(HTMLParser):
             href_match = re.search(r"race-(\d+)/long-form/?$", attributes["href"], re.I)
             match = race_match or href_match
             if match and "/form-guides/" in attributes["href"]:
-                self.links[int(match.group(1))] = urllib.parse.urljoin(SOURCE_ROOT, attributes["href"])
+                self.links.append((int(match.group(1)), urllib.parse.urljoin(SOURCE_ROOT, attributes["href"])))
 
         if tag == "tr" and "form-guide-long-form-table-selection" in classes:
             self.row = {
@@ -242,7 +281,7 @@ def parse_recorder_html(html: str, source_url: str) -> dict[str, Any]:
         scratched = bool(row.get("scratchedClass")) or any("scratched" in cell.lower() for cell in cells)
         rug = row.get("rug")
         box_match = re.search(r"Box\s+(\d+)", row.get("boxText") or "", re.I)
-        actual_box = int(box_match.group(1)) if box_match else (rug if isinstance(rug, int) and rug <= 8 else None)
+        actual_box = int(box_match.group(1)) if box_match else (rug if isinstance(rug, int) and rug <= 10 else None)
         runners.append({
             "name": name,
             "normalizedName": normalized,
@@ -278,9 +317,12 @@ class RecorderClient:
         self.cache_dir = Path(cache_dir)
         self.lock = threading.RLock()
         self.memory: dict[str, dict[str, Any]] = {}
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+        )
 
     def get_racecard(self, context: dict[str, Any]) -> dict[str, Any]:
-        key = f"{context['venueSlug']}-{context['dateStamp']}-r{context['raceNumber']}"
+        key = self._race_key(context)
         with self.lock:
             if key in self.memory:
                 return copy.deepcopy(self.memory[key])
@@ -297,15 +339,35 @@ class RecorderClient:
             self.memory[key] = card
         return copy.deepcopy(card)
 
+    def save_racecard(self, context: dict[str, Any], card: dict[str, Any]) -> None:
+        key = self._race_key(context)
+        with self.lock:
+            self._write_cache(f"race-{key}.json", card)
+            self.memory[key] = copy.deepcopy(card)
+
+    @staticmethod
+    def _race_key(context: dict[str, Any]) -> str:
+        return f"{context['venueSlug']}-{context['dateStamp']}-r{context['raceNumber']}"
+
+    @staticmethod
+    def meeting_url(context: dict[str, Any]) -> str:
+        meeting_key = f"{context['venueSlug']}-{context['dateStamp']}"
+        return f"{SOURCE_ROOT}/form-guides/{meeting_key}/fields/"
+
     def _race_url(self, context: dict[str, Any]) -> str:
         meeting_key = f"{context['venueSlug']}-{context['dateStamp']}"
         links = self._read_cache(f"meeting-{meeting_key}.json") or {}
         race_key = str(context["raceNumber"])
         if race_key not in links:
-            fields_url = f"{SOURCE_ROOT}/form-guides/{meeting_key}/fields/"
+            fields_url = self.meeting_url(context)
             parser = RecorderHtmlParser()
             parser.feed(self._fetch_text(fields_url))
-            links = {str(number): url for number, url in parser.links.items()}
+            meeting_path = f"/form-guides/{meeting_key}/"
+            links = {
+                str(number): url
+                for number, url in parser.links
+                if meeting_path in urllib.parse.urlparse(url).path
+            }
             if not links:
                 raise RecorderUnavailable("Recorder meeting page did not expose long-form race links.")
             self._write_cache(f"meeting-{meeting_key}.json", links)
@@ -315,10 +377,17 @@ class RecorderClient:
         return source_url
 
     def _fetch_text(self, url: str) -> str:
-        request = urllib.request.Request(url, headers={"Accept": "text/html", "User-Agent": USER_AGENT})
+        headers = {**BROWSER_HEADERS, "Referer": f"{SOURCE_ROOT}/form-guides/"}
+        request = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(request, timeout=15) as response:
+            with self.opener.open(request, timeout=15) as response:
                 return response.read().decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as error:
+            if error.code == 403:
+                raise RecorderUnavailable(
+                    "Recorder blocked the automatic request (HTTP 403). Import the long-form page to add form data."
+                ) from error
+            raise RecorderUnavailable(f"Recorder source unavailable: HTTP {error.code}.") from error
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             raise RecorderUnavailable(f"Recorder source unavailable: {error}") from error
 
@@ -351,7 +420,7 @@ class RecorderEnricher:
             return catalogue, self._status("not-applicable", "Recorder enrichment is currently limited to Australian races.")
         required = ("venueSlug", "raceNumber", "distance", "dateStamp")
         if any(not context.get(key) for key in required):
-            return catalogue, self._status("unavailable", "Betfair race metadata was incomplete; Recorder lookup was skipped.")
+            return catalogue, self._status("unavailable", "Betfair race metadata was incomplete; Recorder lookup was skipped.", context)
 
         market_key = str(catalogue.get("marketId") or "-")
         with self.lock:
@@ -364,15 +433,46 @@ class RecorderEnricher:
             enriched, status = match_racecard(catalogue, book, context, card)
         except Exception as error:
             reason = str(error) if isinstance(error, RecorderUnavailable) else "Recorder enrichment failed safely."
-            enriched, status = catalogue, self._status("unavailable", reason)
+            enriched, status = catalogue, self._status("unavailable", reason, context)
 
         with self.lock:
             self.results[market_key] = (copy.deepcopy(enriched), copy.deepcopy(status))
         return enriched, status
 
+    def import_html(
+        self,
+        catalogue: dict[str, Any] | None,
+        book: dict[str, Any] | None,
+        html: str,
+        source_url: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        if not catalogue or not book:
+            raise RecorderUnavailable("Load the selected Betfair race before importing its form.")
+        context = market_context(catalogue)
+        if context["countryCode"] != "AU":
+            raise RecorderUnavailable("Recorder imports are limited to Australian races.")
+        if not html.strip() or "<" not in html:
+            raise RecorderUnavailable("Copy the complete Recorder long-form webpage, then paste it here.")
+
+        attribution_url = str(source_url or self.client.meeting_url(context))
+        card = parse_recorder_html(html, attribution_url)
+        card["fetchedAt"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        enriched, status = match_racecard(catalogue, book, context, card)
+        status["imported"] = True
+        status["sourceMethod"] = "Browser import"
+
+        self.client.save_racecard(context, card)
+        market_key = str(catalogue.get("marketId") or "-")
+        with self.lock:
+            self.results[market_key] = (copy.deepcopy(enriched), copy.deepcopy(status))
+        return enriched, status
+
     @staticmethod
-    def _status(status: str, reason: str) -> dict[str, Any]:
-        return {"status": status, "source": SOURCE_NAME, "reason": reason}
+    def _status(status: str, reason: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        result = {"status": status, "source": SOURCE_NAME, "reason": reason}
+        if context and context.get("venueSlug") and context.get("dateStamp"):
+            result["meetingUrl"] = RecorderClient.meeting_url(context)
+        return result
 
 
 def match_racecard(
@@ -454,3 +554,4 @@ def match_racecard(
         "fetchedAt": card.get("fetchedAt"),
     }
     return enriched, status
+
