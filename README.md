@@ -12,6 +12,7 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 - `manual.js` parses pasted racecards and compares price/draw signals with the guide.
 - `betfair_connector.py` securely connects the local interface to Betfair.
 - `recorder_enrichment.py` locates, validates and caches Australian Greyhound Recorder long-form cards.
+- `atr_enrichment.py` locates, validates and caches British/Irish At The Races cards.
 - `start-betfair.cmd` launches the local interface on Windows.
 
 ## Betfair Live Check
@@ -35,6 +36,12 @@ Each validated racecard is stored in `.recorder-cache/` and reused during pollin
 Recorder may reject direct automated requests with HTTP 403. The connector now retries with browser-compatible request headers and exposes an **Import form** fallback when the source still blocks access. Open the linked Recorder meeting, choose the selected race's long-form page, copy the complete webpage and paste it into the import dialog. The connector validates venue, date, race number, distance, start time and runner overlap before using or caching the imported card. A wrong or low-confidence card is rejected without affecting Betfair Live Check.
 
 The local connector must be restarted after connector code changes. Betfair credentials and copied page content remain on the local computer and are not published to GitHub Pages.
+
+### At The Races enrichment
+
+For British and Irish races, Live Check now uses [At The Races Greyhounds](https://greyhounds.attheraces.com/) as the optional form source. The match verifies venue, local date, race number, start time, distance and normalized runner-name overlap before adding actual trap, recent Form, Top Speed, Expert View and Quick Form. Each validated card is stored once in `.atr-cache/`.
+
+ATR Top Speed is displayed and ranked as a performance rating; it is not presented as Early Speed. The Early column only uses ATR's explicit **Early Leaders** race angle or supported comment evidence. If automatic loading is blocked, use **Import form**, copy the complete linked ATR racecard page and paste it into the existing import window. A failed or low-confidence match leaves Betfair prices and the existing Live Check working.
 
 ## Manual Check
 
