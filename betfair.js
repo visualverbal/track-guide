@@ -10,6 +10,8 @@
     tracks: [],
     markets: [],
     selectedMarketId: null,
+    recorderClipboardHtml: "",
+    recorderSourceUrl: "",
     bookTimer: null,
     clockTimer: null,
     mode: localStorage.getItem("greyhoundGuide.mode") || "guide"
@@ -32,7 +34,13 @@
     dialog: document.querySelector("#betfairDialog"),
     form: document.querySelector("#betfairForm"),
     closeDialog: document.querySelector("#closeBetfair"),
-    error: document.querySelector("#betfairError")
+    error: document.querySelector("#betfairError"),
+    recorderDialog: document.querySelector("#recorderDialog"),
+    recorderForm: document.querySelector("#recorderForm"),
+    recorderPaste: document.querySelector("#recorderPaste"),
+    recorderLink: document.querySelector("#openRecorder"),
+    recorderClose: document.querySelector("#closeRecorder"),
+    recorderError: document.querySelector("#recorderError")
   };
 
   setupLiveCheck();
@@ -48,6 +56,16 @@
     liveEls.raceWindow.addEventListener("change", loadMarkets);
     liveEls.closeDialog.addEventListener("click", () => liveEls.dialog.close());
     liveEls.form.addEventListener("submit", login);
+    liveEls.recorderClose.addEventListener("click", () => liveEls.recorderDialog.close());
+    liveEls.recorderForm.addEventListener("submit", importRecorderForm);
+    liveEls.recorderPaste.addEventListener("paste", captureRecorderPaste);
+    liveEls.recorderPaste.addEventListener("input", () => {
+      if (!liveEls.recorderPaste.value.trim()) liveState.recorderClipboardHtml = "";
+    });
+    liveEls.raceDetail.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-import-recorder]");
+      if (button) openRecorderImport(button.dataset.recorderUrl || "");
+    });
     liveEls.raceList.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-market-id]");
       if (button) selectMarket(button.dataset.marketId);
@@ -158,6 +176,46 @@
     } finally {
       submit.disabled = false;
       submit.textContent = "Connect";
+    }
+  }
+
+  function openRecorderImport(sourceUrl) {
+    liveState.recorderClipboardHtml = "";
+    liveState.recorderSourceUrl = sourceUrl;
+    liveEls.recorderPaste.value = "";
+    liveEls.recorderError.textContent = "";
+    liveEls.recorderLink.href = sourceUrl || "https://www.thegreyhoundrecorder.com.au/form-guides/";
+    liveEls.recorderDialog.showModal();
+  }
+
+  function captureRecorderPaste(event) {
+    const html = event.clipboardData?.getData("text/html") || "";
+    liveState.recorderClipboardHtml = html;
+  }
+
+  async function importRecorderForm(event) {
+    event.preventDefault();
+    const html = liveState.recorderClipboardHtml || liveEls.recorderPaste.value;
+    const submit = liveEls.recorderForm.querySelector('button[type="submit"]');
+    liveEls.recorderError.textContent = "";
+    submit.disabled = true;
+    submit.textContent = "Checking...";
+    try {
+      await api("/api/recorder/import", {
+        method: "POST",
+        body: JSON.stringify({
+          marketId: liveState.selectedMarketId,
+          html,
+          sourceUrl: liveState.recorderSourceUrl
+        })
+      });
+      liveEls.recorderDialog.close();
+      await loadMarketBook();
+    } catch (error) {
+      liveEls.recorderError.textContent = error.message;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "Import form";
     }
   }
 
@@ -353,10 +411,14 @@
         </div>
       `;
     }
+    const importButton = enrichment.meetingUrl
+      ? `<button class="recorder-import-button" type="button" data-import-recorder data-recorder-url="${liveEscape(enrichment.meetingUrl)}">Import form</button>`
+      : "";
     return `
       <div class="enrichment-status unavailable">
         <strong>Recorder form unavailable</strong>
         <span>${liveEscape(enrichment.reason || "The source could not be matched safely.")} Betfair Live Check remains active.</span>
+        ${importButton}
       </div>
     `;
   }
@@ -398,7 +460,7 @@
 
   function actualBoxFor(runner, market) {
     const value = Number(runner.recorder?.actualBox ?? runner.actualBox);
-    if (Number.isInteger(value) && value >= 1 && value <= 8) return value;
+    if (Number.isInteger(value) && value >= 1 && value <= 10) return value;
     if (market.event?.countryCode === "AU") return null;
     const fallback = Number(runner.sortPriority);
     return Number.isInteger(fallback) ? fallback : null;
@@ -704,3 +766,4 @@
       .replaceAll("'", "&#039;");
   }
 })();
+
