@@ -109,21 +109,56 @@ class RecorderParsingTests(unittest.TestCase):
         with self.assertRaises(RecorderUnavailable):
             match_racecard(catalogue, book, market_context(catalogue), self.card)
 
+    def test_uses_source_venue_timezone_for_named_variants(self):
+        catalogue, _book = northam_market()
+        catalogue["event"] = {
+            "name": "Murray Bridge Straight",
+            "venue": "Murray Bridge Straight",
+            "countryCode": "AU",
+        }
+        catalogue["marketStartTime"] = "2026-08-17T14:30:00Z"
+        context = market_context(catalogue)
+        self.assertEqual(context["venueSlug"], "murray-bridge-straight")
+        self.assertEqual(context["date"], "2026-08-18")
+
+        catalogue["event"] = {"name": "Q2 Parklands", "venue": "Q2 Parklands", "countryCode": "AU"}
+        context = market_context(catalogue)
+        self.assertEqual(context["venueSlug"], "q2-parklands")
+        self.assertEqual(context["date"], "2026-08-18")
+
 
 class StubRecorderClient(RecorderClient):
-    def __init__(self, cache_dir, html):
-        super().__init__(cache_dir)
+    def __init__(self, cache_dir, html, browser_fetcher=None, blocked=False):
+        super().__init__(cache_dir, browser_fetcher=browser_fetcher)
         self.html = html
         self.fetches = []
+        self.blocked = blocked
 
     def _fetch_text(self, url):
         self.fetches.append(url)
+        if self.blocked:
+            raise RecorderUnavailable("Recorder blocked the automatic request (HTTP 403).")
         if url.endswith("/fields/"):
             return (
                 '<a href="/form-guides/northam-20260817/auto-owls-bentley-race-9/long-form/" '
                 'data-analytics="Meeting Event Selector : Race 9">9</a>'
                 '<a href="/form-guides/other-track-20260817/other-race-9/long-form/" '
                 'data-analytics="Next Race : Race 9">Other track</a>'
+            )
+        return self.html
+
+
+class StubRecorderBrowser:
+    def __init__(self, html):
+        self.html = html
+        self.fetches = []
+
+    def fetch(self, url):
+        self.fetches.append(url)
+        if url.endswith("/fields/"):
+            return (
+                '<a href="/form-guides/northam-20260817/auto-owls-bentley-race-9/long-form/" '
+                'data-analytics="Meeting Event Selector : Race 9">9</a>'
             )
         return self.html
 
@@ -145,6 +180,26 @@ class RecorderCacheTests(unittest.TestCase):
             self.assertEqual(card["raceNumber"], 9)
             self.assertEqual(card["sourceUrl"], SOURCE_URL)
 
+    def test_uses_hidden_browser_after_http_403_then_reuses_cache(self):
+        catalogue, _book = northam_market()
+        context = market_context(catalogue)
+        browser = StubRecorderBrowser(FIXTURE.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            first = StubRecorderClient(Path(temporary), "", browser_fetcher=browser, blocked=True)
+            card = first.get_racecard(context)
+            self.assertEqual(card["sourceMethod"], "Headless browser")
+            self.assertEqual(len(browser.fetches), 2)
+            first.get_racecard(context)
+            self.assertEqual(len(browser.fetches), 2)
+
+            second_browser = StubRecorderBrowser("should not be used")
+            second = StubRecorderClient(
+                Path(temporary), "", browser_fetcher=second_browser, blocked=True
+            )
+            self.assertEqual(second.get_racecard(context)["sourceMethod"], "Headless browser")
+            self.assertEqual(second.fetches, [])
+            self.assertEqual(second_browser.fetches, [])
+
 
 class RecorderImportTests(unittest.TestCase):
     def test_browser_import_overrides_unavailable_result_and_is_cached(self):
@@ -162,7 +217,7 @@ class RecorderImportTests(unittest.TestCase):
             self.assertEqual(status["matchedRunners"], 8)
 
             reused, reused_status = enricher.enrich(catalogue, book)
-            self.assertEqual(reused_status["sourceMethod"], "Browser import")
+            self.assertEqual(reused_status["sourceMethod"], "Copied webpage")
             by_name = {normalize_runner_name(item["runnerName"]): item for item in reused["runners"]}
             self.assertEqual(by_name["golilogo"]["actualBox"], 5)
             self.assertEqual(by_name["aussietrickster"]["actualBox"], 6)

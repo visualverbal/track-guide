@@ -189,8 +189,8 @@
     liveState.formImportSource = atr ? "atr" : "recorder";
     liveEls.recorderPaste.value = "";
     liveEls.recorderError.textContent = "";
-    liveEls.formImportTitle.textContent = atr ? "Import ATR Form" : "Import Recorder Form";
-    liveEls.formImportLabel.textContent = atr ? "ATR racecard page" : "Recorder long-form page";
+    liveEls.formImportTitle.textContent = atr ? "ATR Advanced Fallback" : "Recorder Advanced Fallback";
+    liveEls.formImportLabel.textContent = atr ? "ATR racecard HTML or plain text" : "Recorder long-form webpage";
     liveEls.recorderLink.textContent = atr ? "Open At The Races" : "Open Recorder";
     liveEls.recorderLink.href = sourceUrl || (atr
       ? "https://greyhounds.attheraces.com/racecards/today"
@@ -225,7 +225,7 @@
       liveEls.recorderError.textContent = error.message;
     } finally {
       submit.disabled = false;
-      submit.textContent = "Import form";
+      submit.textContent = "Use fallback";
     }
   }
 
@@ -433,18 +433,19 @@
       const sourceLink = enrichment.sourceUrl
         ? `<a href="${liveEscape(enrichment.sourceUrl)}" target="_blank" rel="noreferrer">${liveEscape(sourceName)}</a>`
         : liveEscape(sourceName);
+      const method = enrichment.sourceMethod ? `Loaded via ${liveEscape(enrichment.sourceMethod)}. ` : "";
       const detail = enrichment.sourceKey === "atr"
         ? `Actual traps, form, Top Speed, Quick Form and expert view from ${sourceLink}. Top Speed is not early speed.`
         : `Actual boxes and form from ${sourceLink}. Our $ is reference only.`;
       return `
         <div class="enrichment-status matched">
           <strong>${liveEscape(enrichment.matchedRunners)}/${liveEscape(enrichment.betfairActiveRunners)} runners matched</strong>
-          <span>${detail}</span>
+          <span>${method}${detail}</span>
         </div>
       `;
     }
     const importButton = enrichment.meetingUrl
-      ? `<button class="recorder-import-button" type="button" data-import-form data-source-key="${liveEscape(enrichment.sourceKey || "recorder")}" data-source-url="${liveEscape(enrichment.meetingUrl)}">Import form</button>`
+      ? `<button class="recorder-import-button" type="button" data-import-form data-source-key="${liveEscape(enrichment.sourceKey || "recorder")}" data-source-url="${liveEscape(enrichment.meetingUrl)}">Advanced fallback</button>`
       : "";
     return `
       <div class="enrichment-status unavailable">
@@ -469,14 +470,21 @@
     `;
   }
 
-  function findGuideTrack(venue) {
+  function canonicalGuideTrack(venue) {
     const target = normalizeTrack(venue);
     const aliases = {
       richmond: "richmondloop",
       monmoregreen: "monmore",
-      valley: "thevalley"
+      valley: "thevalley",
+      q2parklands: "parklands",
+      qparklands: "parklands",
+      murraybridgestraight: "murraybridge"
     };
-    const expected = aliases[target] || target;
+    return aliases[target] || target;
+  }
+
+  function findGuideTrack(venue) {
+    const expected = canonicalGuideTrack(venue);
     return liveState.tracks.find((track) => {
       const name = normalizeTrack(track.name);
       return name === expected || name.includes(expected) || expected.includes(name);
@@ -515,7 +523,7 @@
 
     return runners.map((item) => {
       let score = 0;
-      const evidence = [];
+      const evidence = { form: [], pace: [], draw: [], market: [], rating: [], comment: [] };
       const suppliedSpeedRank = Number(item.recorder?.earlyRank);
       const numericSpeedRank = speedOrder.get(String(item.runner.selectionId)) || null;
       const speedRank = numericSpeedRank
@@ -523,83 +531,89 @@
       const ratingRank = ratingOrder.get(String(item.runner.selectionId)) || null;
       const marketRank = marketRanks.get(String(item.runner.selectionId)) || null;
       const fieldSize = runners.length;
-      const isFavourite = favourite && String(favourite.id) === String(item.runner.selectionId);
       const bestDraw = bestDrawNumber && item.actualBox === bestDrawNumber;
       const comment = item.recorder?.comment || item.metadata.comment;
       const commentView = commentEvidence(comment);
+      const formView = recentFormEvidence(item.recorder?.form);
+      let paceScore = 0;
+
+      score += formView.score;
+      if (formView.reason) evidence.form.push(formView.reason);
 
       if (speedRank) {
         if (speedRank === 1) {
-          score += 4;
-          evidence.push(numericSpeedRank ? "fastest early speed" : "first ATR early leader");
+          paceScore = 4;
+          evidence.pace.push(numericSpeedRank ? "fastest early speed" : "first ATR early leader");
         } else if (speedRank <= Math.max(2, Math.ceil(fieldSize / 4))) {
-          score += 3;
-          evidence.push(`early pace rank ${speedRank}/${speedEvidenceSize}`);
+          paceScore = 3;
+          evidence.pace.push(numericSpeedRank ? `early pace rank ${speedRank}/${speedEvidenceSize}` : `ATR early leader rank ${speedRank}/${speedEvidenceSize}`);
         } else if (!numericSpeedRank) {
-          score += 1;
-          evidence.push(`ATR early leader rank ${speedRank}/${speedEvidenceSize}`);
+          paceScore = speedRank <= Math.ceil(speedEvidenceSize / 2) ? 1 : 0;
+          if (paceScore) evidence.pace.push(`ATR early leader rank ${speedRank}/${speedEvidenceSize}`);
         } else if (speedRank <= Math.ceil(speedEvidenceSize / 2)) {
-          score += 1;
-          evidence.push(`above-median early pace`);
+          paceScore = 1;
+          evidence.pace.push("above-median early pace");
         } else if (numericSpeedRank && speedRank === speedEvidenceSize) {
-          score -= 2;
-          evidence.push("lowest ranked early pace");
+          paceScore = -3;
+          evidence.pace.push("lowest ranked early pace");
         }
       } else {
         const pace = derivedPace(comment);
         if (pace === "FAST") {
-          score += 2;
-          evidence.push("comment supports early pace");
+          paceScore = 3;
+          evidence.pace.push("comment supports early pace");
         } else if (pace === "SLOW") {
-          score -= 2;
-          evidence.push("comment questions early pace");
+          paceScore = -3;
+          evidence.pace.push("comment questions early pace");
         }
+      }
+      score += paceScore;
+
+      if (bestDraw) {
+        score += 3;
+        evidence.draw.push(`${guide.bestDraw} guide positive`);
+      }
+
+      if (marketRank === 1) {
+        score += 2;
+        evidence.market.push("market favourite");
+      } else if (marketRank === 2) {
+        score += 1;
+        evidence.market.push("second in market");
       }
 
       if (ratingRank) {
         const ratingName = item.recorder?.ratingLabel || "Recorder rating";
         if (ratingRank === 1) {
-          score += 3;
-          evidence.push(`top ${ratingName}`);
-        } else if (ratingRank <= Math.min(3, ratingOrder.size)) {
-          score += 2;
-          evidence.push(`rating rank ${ratingRank}/${ratingOrder.size}`);
+          score += 1;
+          evidence.rating.push(`top ${ratingName}`);
         } else if (ratingRank === ratingOrder.size) {
           score -= 1;
-          evidence.push(`lowest ${ratingName}`);
+          evidence.rating.push(`lowest ${ratingName}`);
         }
       }
 
-      if (marketRank === 1) {
-        score += 3;
-        evidence.push("market favourite");
-      } else if (marketRank === 2) {
-        score += 2;
-        evidence.push("second in market");
-      } else if (marketRank === 3) {
-        score += 1;
-        evidence.push("third in market");
-      }
-
-      if (bestDraw) {
-        score += 2;
-        evidence.push(`${guide.bestDraw} guide positive`);
-      }
-      if (isFavourite && /^A/.test(guide?.strategy || "")) score += 1;
-
-      const formView = recentFormEvidence(item.recorder?.form);
-      score += formView.score;
-      if (formView.reason) evidence.push(formView.reason);
       score += commentView.score;
-      if (commentView.reason) evidence.push(commentView.reason);
+      if (commentView.reason) evidence.comment.push(commentView.reason);
 
       let label;
-      if (score >= 8) label = "TOP SIGNAL";
-      else if (score >= 5) label = "GOOD LOOK";
-      else if (score >= 1) label = "MIXED";
+      const topSupport = paceScore > 0 || bestDraw || (marketRank !== null && marketRank <= 2) || commentView.positive;
+      if (score >= 11 && formView.strong && topSupport) label = "TOP SIGNAL";
+      else if (score >= 7) label = "GOOD LOOK";
+      else if (score >= 2) label = "MIXED";
       else label = "CAUTION";
       if (commentView.negative && ["TOP SIGNAL", "GOOD LOOK"].includes(label)) label = "MIXED";
-      if (commentView.severe && label === "MIXED" && score < 4) label = "CAUTION";
+      if (commentView.severe && (score < 4 || formView.weak)) label = "CAUTION";
+
+      const orderedEvidence = [
+        ...evidence.form,
+        ...(commentView.negative ? evidence.comment : []),
+        ...evidence.pace,
+        ...evidence.draw,
+        ...evidence.market,
+        ...evidence.rating,
+        ...(commentView.negative ? [] : evidence.comment)
+      ];
 
       const classes = { "TOP SIGNAL": "top-signal", "GOOD LOOK": "good-look", "MIXED": "mixed", "CAUTION": "caution" };
       const priorities = { "TOP SIGNAL": 4, "GOOD LOOK": 3, "MIXED": 2, "CAUTION": 1 };
@@ -611,7 +625,7 @@
           className: classes[label],
           priority: priorities[label],
           score,
-          reason: evidence.slice(0, 3).join("; ") || "Limited verified form evidence"
+          reason: orderedEvidence.slice(0, 4).join("; ") || "Limited verified form evidence"
         }
       };
     });
@@ -626,31 +640,34 @@
 
   function recentFormEvidence(form) {
     const positions = String(form || "").match(/[1-8]/g)?.map(Number) || [];
-    if (!positions.length) return { score: 0, reason: "" };
+    if (positions.length < 2) return { score: 0, reason: "", strong: false, weak: false };
     const wins = positions.filter((position) => position === 1).length;
     const placings = positions.filter((position) => position <= 3).length;
-    if (wins >= 2) return { score: 2, reason: "multiple recent wins" };
-    if (wins || placings >= 2) return { score: 1, reason: "recent top-three form" };
-    if (positions.every((position) => position >= 5)) return { score: -2, reason: "weak recent finishes" };
-    return { score: 0, reason: "mixed recent form" };
+    const poorRuns = positions.filter((position) => position >= 5).length;
+    if (wins >= 2 || placings >= 4) return { score: 6, reason: "strong recent form", strong: true, weak: false };
+    if (placings >= 3) return { score: 4, reason: "consistent recent placings", strong: false, weak: false };
+    if (poorRuns >= 3 && wins === 0) return { score: -4, reason: "weak recent finishes", strong: false, weak: true };
+    if (poorRuns >= 3) return { score: 0, reason: "mixed recent form", strong: false, weak: false };
+    if (wins || placings >= 2) return { score: 3, reason: "positive recent form", strong: false, weak: false };
+    return { score: 0, reason: "mixed recent form", strong: false, weak: false };
   }
 
   function commentEvidence(comment) {
     const text = String(comment || "").toLowerCase();
-    if (!text) return { score: 0, reason: "", negative: false, severe: false };
+    if (!text) return { score: 0, reason: "", positive: false, negative: false, severe: false };
     if (/ready to end|must have|must be considered|running hot|right box|strong chance|hard to beat|should be saluting/.test(text)) {
-      return { score: 2, reason: "positive form comment", negative: false, severe: false };
+      return { score: 1, reason: "positive form comment", positive: true, negative: false, severe: false };
     }
     if (/not do enough at the jump|slow away|tardy|take (?:her|his|their) time|awkward|early pace concern/.test(text)) {
-      return { score: -3, reason: "negative early-pace comment", negative: true, severe: true };
+      return { score: -4, reason: "negative early-pace comment", positive: false, negative: true, severe: true };
     }
     if (/doesn.t always|harder on (?:his|her|their) chances|challenge is to repeat|too risky|happy to look elsewhere|needs luck|poor form|won.t be easy|traffic problems|isn.t the way to any riches|hard to recommend|plenty to find/.test(text)) {
-      return { score: -2, reason: "negative form/draw comment", negative: true, severe: false };
+      return { score: -2, reason: "negative form/draw comment", positive: false, negative: true, severe: false };
     }
     if (/chance|consider|suited|well drawn|good beginner|quick|fast/.test(text)) {
-      return { score: 1, reason: "supportive form comment", negative: false, severe: false };
+      return { score: 1, reason: "supportive form comment", positive: true, negative: false, severe: false };
     }
-    return { score: 0, reason: "neutral form comment", negative: false, severe: false };
+    return { score: 0, reason: "neutral form comment", positive: false, negative: false, severe: false };
   }
 
   function derivedPace(comment) {

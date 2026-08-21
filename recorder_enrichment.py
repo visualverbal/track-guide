@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from browser_fetcher import BrowserUnavailable, ChromiumBrowserFetcher
+
 
 SOURCE_NAME = "Greyhound Recorder"
 SOURCE_ROOT = "https://www.thegreyhoundrecorder.com.au"
@@ -42,6 +44,9 @@ VENUE_TIMEZONES = {
     "anglepark": "Australia/Adelaide",
     "mountgambier": "Australia/Adelaide",
     "murraybridge": "Australia/Adelaide",
+    "murraybridgestraight": "Australia/Adelaide",
+    "parklands": "Australia/Brisbane",
+    "q2parklands": "Australia/Brisbane",
     "capalaba": "Australia/Brisbane",
     "rockhampton": "Australia/Brisbane",
     "townsville": "Australia/Brisbane",
@@ -313,10 +318,11 @@ def parse_recorder_html(html: str, source_url: str) -> dict[str, Any]:
 
 
 class RecorderClient:
-    def __init__(self, cache_dir: Path) -> None:
+    def __init__(self, cache_dir: Path, browser_fetcher: ChromiumBrowserFetcher | None = None) -> None:
         self.cache_dir = Path(cache_dir)
         self.lock = threading.RLock()
         self.memory: dict[str, dict[str, Any]] = {}
+        self.browser_fetcher = browser_fetcher or ChromiumBrowserFetcher()
         self.opener = urllib.request.build_opener(
             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
         )
@@ -331,8 +337,10 @@ class RecorderClient:
                 self.memory[key] = cached
                 return copy.deepcopy(cached)
 
-        source_url = self._race_url(context)
-        card = parse_recorder_html(self._fetch_text(source_url), source_url)
+        source_url, discovery_method = self._race_url(context)
+        race_html, race_method = self._automatic_text(source_url)
+        card = parse_recorder_html(race_html, source_url)
+        card["sourceMethod"] = "Headless browser" if "Headless browser" in {discovery_method, race_method} else "HTTP"
         card["fetchedAt"] = datetime.now().astimezone().isoformat(timespec="seconds")
         with self.lock:
             self._write_cache(f"race-{key}.json", card)
@@ -354,14 +362,16 @@ class RecorderClient:
         meeting_key = f"{context['venueSlug']}-{context['dateStamp']}"
         return f"{SOURCE_ROOT}/form-guides/{meeting_key}/fields/"
 
-    def _race_url(self, context: dict[str, Any]) -> str:
+    def _race_url(self, context: dict[str, Any]) -> tuple[str, str]:
         meeting_key = f"{context['venueSlug']}-{context['dateStamp']}"
         links = self._read_cache(f"meeting-{meeting_key}.json") or {}
+        discovery_method = "Cache"
         race_key = str(context["raceNumber"])
         if race_key not in links:
             fields_url = self.meeting_url(context)
             parser = RecorderHtmlParser()
-            parser.feed(self._fetch_text(fields_url))
+            fields_html, discovery_method = self._automatic_text(fields_url)
+            parser.feed(fields_html)
             meeting_path = f"/form-guides/{meeting_key}/"
             links = {
                 str(number): url
@@ -374,7 +384,18 @@ class RecorderClient:
         source_url = links.get(race_key)
         if not source_url:
             raise RecorderUnavailable(f"Recorder did not list race {race_key} for this meeting.")
-        return source_url
+        return source_url, discovery_method
+
+    def _automatic_text(self, url: str) -> tuple[str, str]:
+        try:
+            return self._fetch_text(url), "HTTP"
+        except RecorderUnavailable as http_error:
+            try:
+                return self.browser_fetcher.fetch(url), "Headless browser"
+            except BrowserUnavailable as browser_error:
+                raise RecorderUnavailable(
+                    f"Recorder automatic loading failed: {http_error} {browser_error} Use Advanced fallback."
+                ) from browser_error
 
     def _fetch_text(self, url: str) -> str:
         headers = {**BROWSER_HEADERS, "Referer": f"{SOURCE_ROOT}/form-guides/"}
@@ -385,7 +406,7 @@ class RecorderClient:
         except urllib.error.HTTPError as error:
             if error.code == 403:
                 raise RecorderUnavailable(
-                    "Recorder blocked the automatic request (HTTP 403). Import the long-form page to add form data."
+                    "Recorder blocked the automatic request (HTTP 403)."
                 ) from error
             raise RecorderUnavailable(f"Recorder source unavailable: HTTP {error.code}.") from error
         except (urllib.error.URLError, TimeoutError, OSError) as error:
@@ -456,10 +477,10 @@ class RecorderEnricher:
 
         attribution_url = str(source_url or self.client.meeting_url(context))
         card = parse_recorder_html(html, attribution_url)
+        card["sourceMethod"] = "Copied webpage"
         card["fetchedAt"] = datetime.now().astimezone().isoformat(timespec="seconds")
         enriched, status = match_racecard(catalogue, book, context, card)
         status["imported"] = True
-        status["sourceMethod"] = "Browser import"
 
         self.client.save_racecard(context, card)
         market_key = str(catalogue.get("marketId") or "-")
@@ -469,7 +490,7 @@ class RecorderEnricher:
 
     @staticmethod
     def _status(status: str, reason: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
-        result = {"status": status, "source": SOURCE_NAME, "reason": reason}
+        result = {"status": status, "source": SOURCE_NAME, "reason": reason, "sourceKey": "recorder"}
         if context and context.get("venueSlug") and context.get("dateStamp"):
             result["meetingUrl"] = RecorderClient.meeting_url(context)
         return result
@@ -547,6 +568,7 @@ def match_racecard(
     status = {
         "status": "matched" if overlap == 1 else "partial",
         "source": SOURCE_NAME,
+        "sourceKey": "recorder",
         "sourceUrl": card.get("sourceUrl"),
         "confidence": round((0.8 if schedule_changed else 0.85) + 0.15 * overlap, 3),
         "matchedRunners": len(matches),
@@ -558,6 +580,7 @@ def match_racecard(
         "unmatchedBetfair": unmatched_betfair,
         "unmatchedRecorder": unmatched_recorder,
         "fetchedAt": card.get("fetchedAt"),
+        "sourceMethod": card.get("sourceMethod", "HTTP"),
     }
     return enriched, status
 

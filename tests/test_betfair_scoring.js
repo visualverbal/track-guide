@@ -80,5 +80,47 @@ const atrScored = context.scoreRace(atrRunners, { id: 12, price: 2.5 }, null);
 assert.equal(atrScored.find((item) => item.runner.selectionId === 11).speedRank, 1);
 assert.match(atrScored.find((item) => item.runner.selectionId === 11).signal.reason, /ATR early leader/);
 assert.doesNotMatch(atrScored.find((item) => item.runner.selectionId === 13).signal.reason, /lowest ranked/);
+
+const priorityRunners = [
+  {
+    runner: { selectionId: 21, runnerName: "Rating Only" },
+    back: 2.0,
+    actualBox: 1,
+    recorder: { earlySpeed: 60, rating: 100, form: "6758", comment: "" },
+    metadata: { comment: "" }
+  },
+  {
+    runner: { selectionId: 22, runnerName: "Form And Pace" },
+    back: 3.2,
+    actualBox: 4,
+    recorder: { earlySpeed: 85, rating: 84, form: "1213", comment: "" },
+    metadata: { comment: "" }
+  },
+  {
+    runner: { selectionId: 23, runnerName: "Neutral" },
+    back: 5.0,
+    actualBox: 6,
+    recorder: { earlySpeed: 45, rating: 70, form: "4454", comment: "" },
+    metadata: { comment: "" }
+  }
+];
+const priorityScored = context.scoreRace(priorityRunners, { id: 21, price: 2.0 }, guide);
+const ratingOnly = priorityScored.find((item) => item.runner.selectionId === 21);
+const formAndPace = priorityScored.find((item) => item.runner.selectionId === 22);
+assert.ok(formAndPace.signal.score > ratingOnly.signal.score, "recent form and early pace must outrank rating alone");
+assert.equal(formAndPace.signal.label, "TOP SIGNAL");
+assert.notEqual(ratingOnly.signal.label, "TOP SIGNAL", "top rating alone must not create a top signal");
+
+const aliasStart = source.indexOf("  function canonicalGuideTrack(");
+const aliasEnd = source.indexOf("  function actualBoxFor(");
+assert.ok(aliasStart >= 0 && aliasEnd > aliasStart, "guide alias functions were not found");
+const aliasContext = {};
+vm.createContext(aliasContext);
+vm.runInContext(`${source.slice(aliasStart, aliasEnd)}\nthis.canonicalGuideTrack = canonicalGuideTrack;`, aliasContext);
+assert.equal(aliasContext.canonicalGuideTrack("Valley"), "thevalley");
+assert.equal(aliasContext.canonicalGuideTrack("Richmond"), "richmondloop");
+assert.equal(aliasContext.canonicalGuideTrack("Monmore Green"), "monmore");
+assert.equal(aliasContext.canonicalGuideTrack("Q2 Parklands"), "parklands");
+assert.equal(aliasContext.canonicalGuideTrack("Murray Bridge Straight"), "murraybridge");
 console.log("Race scoring validation passed.");
 

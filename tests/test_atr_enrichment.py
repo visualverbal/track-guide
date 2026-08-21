@@ -10,12 +10,16 @@ from atr_enrichment import (
     match_atr_racecard,
     normalize_atr_runner_name,
     parse_atr_html,
+    parse_atr_text,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "atr_dunstall_r6.html"
+SHEFFIELD_RENDERED = ROOT / "tests" / "fixtures" / "atr_sheffield_rendered.html"
+SHEFFIELD_TEXT = ROOT / "tests" / "fixtures" / "atr_sheffield_flattened.txt"
 SOURCE_URL = "https://greyhounds.attheraces.com/racecard/GB/dunstall-park/17-August-2026/1226"
+SHEFFIELD_URL = "https://greyhounds.attheraces.com/racecard/GB/sheffield/18-August-2026/1407"
 
 
 def dunstall_market():
@@ -31,6 +35,23 @@ def dunstall_market():
         "marketName": "R6 480m A4",
         "marketStartTime": "2026-08-17T11:26:00Z",
         "event": {"name": "Dunstall Park", "venue": "Dunstall Park", "countryCode": "GB"},
+        "runners": runners,
+    }
+    book = {"runners": [{"selectionId": runner["selectionId"], "status": "ACTIVE"} for runner in runners]}
+    return catalogue, book
+
+
+def sheffield_market():
+    names = ["Diamond Santa", "Blue Gate In", "Da Safety Net", "Dingle Bottom (M)", "Blake Delight (W)"]
+    runners = [
+        {"selectionId": 3000 + index, "runnerName": name, "sortPriority": index}
+        for index, name in enumerate(names, start=1)
+    ]
+    catalogue = {
+        "marketId": "1.sheffield-r12",
+        "marketName": "R12 500m A3",
+        "marketStartTime": "2026-08-18T13:07:00Z",
+        "event": {"name": "Sheffield", "venue": "Sheffield", "countryCode": "GB"},
         "runners": runners,
     }
     book = {"runners": [{"selectionId": runner["selectionId"], "status": "ACTIVE"} for runner in runners]}
@@ -83,14 +104,69 @@ class AtrParsingTests(unittest.TestCase):
         with self.assertRaises(AtrUnavailable):
             match_atr_racecard(catalogue, book, atr_market_context(catalogue), self.card)
 
+    def test_parses_rendered_role_rows_without_a_page_race_number(self):
+        catalogue, book = sheffield_market()
+        context = atr_market_context(catalogue)
+        card = parse_atr_html(SHEFFIELD_RENDERED.read_text(encoding="utf-8"), SHEFFIELD_URL, context)
+        enriched, status = match_atr_racecard(catalogue, book, context, card)
+        self.assertEqual(status["matchedRunners"], 5)
+        self.assertEqual(card["raceNumber"], 12)
+        by_name = {runner["normalizedName"]: runner for runner in card["runners"]}
+        self.assertEqual(by_name["dasafetynet"]["earlyRank"], 1)
+        self.assertEqual(by_name["bluegatein"]["earlyRank"], 2)
+        self.assertEqual(enriched["runners"][2]["formData"]["rating"], 100)
+
+    def test_parses_flattened_sheffield_text_using_selected_market_identity(self):
+        catalogue, book = sheffield_market()
+        context = atr_market_context(catalogue)
+        card = parse_atr_text(
+            SHEFFIELD_TEXT.read_text(encoding="utf-8"),
+            SHEFFIELD_URL,
+            context,
+            [runner["runnerName"] for runner in catalogue["runners"]],
+        )
+        enriched, status = match_atr_racecard(catalogue, book, context, card)
+        self.assertEqual(status["runnerOverlap"], 1.0)
+        self.assertEqual(card["runners"][0]["comment"], "Needs to improve at the boxes.")
+        self.assertEqual(card["runners"][2]["earlyRank"], 1)
+        self.assertEqual(enriched["runners"][4]["actualBox"], 6)
+
+    def test_flattened_text_rejects_wrong_url_or_low_runner_overlap(self):
+        catalogue, book = sheffield_market()
+        context = atr_market_context(catalogue)
+        text = SHEFFIELD_TEXT.read_text(encoding="utf-8")
+        with self.assertRaises(AtrUnavailable):
+            parse_atr_text(text, SHEFFIELD_URL.replace("1407", "1351"), context, [])
+        catalogue["runners"] = catalogue["runners"][:2] + [
+            {"selectionId": 3999, "runnerName": "Different Runner", "sortPriority": 3}
+        ]
+        book["runners"] = [
+            {"selectionId": runner["selectionId"], "status": "ACTIVE"}
+            for runner in catalogue["runners"]
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            enricher = AtrEnricher(Path(temporary))
+            with self.assertRaises(AtrUnavailable):
+                enricher.import_html(catalogue, book, text, SHEFFIELD_URL)
+
 
 class StubAtrClient(AtrClient):
-    def __init__(self, cache_dir, html):
-        super().__init__(cache_dir)
+    def __init__(self, cache_dir, html, browser_fetcher=None):
+        super().__init__(cache_dir, browser_fetcher=browser_fetcher)
         self.html = html
         self.fetches = []
 
     def _fetch_text(self, url):
+        self.fetches.append(url)
+        return self.html
+
+
+class StubBrowserFetcher:
+    def __init__(self, html):
+        self.html = html
+        self.fetches = []
+
+    def fetch(self, url):
         self.fetches.append(url)
         return self.html
 
@@ -118,8 +194,26 @@ class AtrCacheImportTests(unittest.TestCase):
             self.assertTrue(status["imported"])
             self.assertEqual(status["matchedRunners"], 6)
             reused, reused_status = enricher.enrich(catalogue, book)
-            self.assertEqual(reused_status["sourceMethod"], "Browser import")
+            self.assertEqual(reused_status["sourceMethod"], "Copied webpage")
             self.assertEqual(reused["runners"][0]["formData"]["rating"], 100)
+
+    def test_uses_hidden_browser_after_http_shell_then_reuses_cache(self):
+        catalogue, _book = sheffield_market()
+        context = atr_market_context(catalogue)
+        browser = StubBrowserFetcher(SHEFFIELD_RENDERED.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temporary:
+            first = StubAtrClient(Path(temporary), "<html><body>ATR app shell</body></html>", browser)
+            card = first.get_racecard(context)
+            self.assertEqual(card["sourceMethod"], "Headless browser")
+            self.assertEqual(len(browser.fetches), 1)
+            first.get_racecard(context)
+            self.assertEqual(len(browser.fetches), 1)
+
+            second_browser = StubBrowserFetcher("should not be used")
+            second = StubAtrClient(Path(temporary), "should not be used", second_browser)
+            self.assertEqual(second.get_racecard(context)["sourceMethod"], "Headless browser")
+            self.assertEqual(second.fetches, [])
+            self.assertEqual(second_browser.fetches, [])
 
 
 if __name__ == "__main__":

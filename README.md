@@ -13,6 +13,7 @@ Static GitHub Pages site for the greyhound track notes from the ChatGPT conversa
 - `betfair_connector.py` securely connects the local interface to Betfair.
 - `recorder_enrichment.py` locates, validates and caches Australian Greyhound Recorder long-form cards.
 - `atr_enrichment.py` locates, validates and caches British/Irish At The Races cards.
+- `browser_fetcher.py` renders form pages in a hidden installed Edge or Chrome browser when HTTP is blocked.
 - `start-betfair.cmd` launches the local interface on Windows.
 
 ## Betfair Live Check
@@ -31,17 +32,21 @@ The public GitHub Pages site cannot access a connector on the private loopback n
 
 For Australian races, the connector attempts to match the Betfair market to a Greyhound Recorder long-form card using venue, local date, race number, start time, distance and normalized runner-name overlap. A successful match adds the actual rug/box, Early Speed, Rating, Form, Comment and Recorder `Our $` reference. It never treats Betfair `sortPriority` as an Australian box.
 
-Each validated racecard is stored in `.recorder-cache/` and reused during polling. Low-confidence matches, changed source markup and source/network failures return an unavailable status while Betfair prices continue to work. Recorder `Our $` is reference data only; the Race Summary is an evidence label, not a profitability claim.
+Each validated racecard is stored in `.recorder-cache/` and reused during polling, so Live Check does not refetch form on every price update. The connector first tries normal HTTP and silently renders the page in an installed Edge or Chrome browser if Recorder returns HTTP 403. Low-confidence matches, changed source markup and source/network failures return an unavailable status while Betfair prices continue to work. Recorder `Our $` is reference data only; the Race Summary is an evidence label, not a profitability claim.
 
-Recorder may reject direct automated requests with HTTP 403. The connector now retries with browser-compatible request headers and exposes an **Import form** fallback when the source still blocks access. Open the linked Recorder meeting, choose the selected race's long-form page, copy the complete webpage and paste it into the import dialog. The connector validates venue, date, race number, distance, start time and runner overlap before using or caching the imported card. A wrong or low-confidence card is rejected without affecting Betfair Live Check.
+If both automatic methods fail, **Advanced fallback** remains available. Open the linked Recorder meeting, choose the selected race's long-form page, copy the complete webpage and paste it into the fallback dialog. The connector applies the same venue, date, race number, distance, start-time and runner-overlap validation before using or caching the copied card. A wrong or low-confidence card is rejected without affecting Betfair Live Check.
 
 The local connector must be restarted after connector code changes. Betfair credentials and copied page content remain on the local computer and are not published to GitHub Pages.
 
 ### At The Races enrichment
 
-For British and Irish races, Live Check now uses [At The Races Greyhounds](https://greyhounds.attheraces.com/) as the optional form source. The match verifies venue, local date, race number, start time, distance and normalized runner-name overlap before adding actual trap, recent Form, Top Speed, Expert View and Quick Form. Each validated card is stored once in `.atr-cache/`.
+For British and Irish races, Live Check uses [At The Races Greyhounds](https://greyhounds.attheraces.com/) as the optional form source. It first tries the normal HTTP page, then silently renders ATR in an installed Edge or Chrome browser when the HTTP response contains only the app shell. The match verifies venue, local date, race number, start time, distance and normalized runner-name overlap before adding actual trap, recent Form, Top Speed, Expert View and Quick Form. Each validated card is stored once in `.atr-cache/`, so polling only refreshes Betfair prices.
 
-ATR Top Speed is displayed and ranked as a performance rating; it is not presented as Early Speed. The Early column only uses ATR's explicit **Early Leaders** race angle or supported comment evidence. If automatic loading is blocked, use **Import form**, copy the complete linked ATR racecard page and paste it into the existing import window. A failed or low-confidence match leaves Betfair prices and the existing Live Check working.
+ATR Top Speed is displayed as a supporting performance rating; it is not presented as Early Speed. The Early column only uses ATR's explicit **Early Leaders** race angle or supported comment evidence. If both automatic methods fail, **Advanced fallback** accepts either copied ATR webpage HTML or flattened page text. Flattened text does not need to preserve the page heading, but it must come from the exact selected race URL and still pass distance and runner-overlap checks. A failed or low-confidence match leaves Betfair prices and the existing Live Check working.
+
+### Race Summary priority
+
+Race Summary ranks available evidence in this order: recent form, early speed, verified box/trap context, market rank, then rating. Expert comments act as a qualitative check and can downgrade a superficially strong runner. A top rating by itself cannot create a **Top Signal**, and the summary does not use the former value calculator or claim a profitable bet.
 
 ## Manual Check
 
@@ -61,7 +66,7 @@ The parsed names and odds remain editable. The checker identifies the favourite 
 - Newly calculated AU figures use Betfair greyhound WIN BSP files from 1 January 2022 to 31 May 2025. Parklands uses its available history from 2025 through 14 August 2026.
 - AU `bestDrawRate` is the winning percentage for all runners from that box, not only favourites.
 - Refreshed Sheffield figures use Betfair WIN BSP files from 1 January to 14 August 2026.
-- Irish figures use official Greyhound Racing Ireland results over the same 2026 period.
+- Irish figures use official Greyhound Racing Ireland results over the same 2026 period. Kilkenny uses 398 single favourites from 57 meetings; all qualifying races were over 525 yards.
 - A favourite is the single shortest Betfair starting price for Betfair calculations, or the single runner marked `f` in Irish results. Joint favourites are excluded.
 - UK and Irish `bestDrawRate` is the win percentage when the favourite starts from that trap.
 

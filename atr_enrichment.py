@@ -15,11 +15,13 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+from browser_fetcher import BrowserUnavailable, ChromiumBrowserFetcher
 from recorder_enrichment import normalize_runner_name, normalize_venue, slugify
 
 
 SOURCE_NAME = "At The Races"
 SOURCE_ROOT = "https://greyhounds.attheraces.com"
+SOURCE_BROWSER_ROOT = "https://greyhounds1.attheraces.com"
 SUPPORTED_COUNTRIES = {"GB", "GBR", "UK", "IE", "IRL", "IRE"}
 MIN_RUNNER_OVERLAP = 0.80
 BROWSER_HEADERS = {
@@ -42,6 +44,25 @@ VENUE_SLUGS = {
 
 class AtrUnavailable(RuntimeError):
     """Raised when an ATR card cannot be located, parsed or matched safely."""
+
+
+class AtrBrowserFetcher:
+    """Render an ATR page in an installed Chromium browser and return its DOM."""
+
+    def __init__(self, executable: str | None = None, wait_milliseconds: int = 10_000) -> None:
+        self.browser = ChromiumBrowserFetcher(executable, wait_milliseconds)
+
+    def fetch(self, url: str) -> str:
+        try:
+            return self.browser.fetch(_browser_url(url))
+        except BrowserUnavailable as error:
+            raise AtrUnavailable(f"ATR headless-browser fallback failed: {error}") from error
+
+
+def _browser_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    browser_root = urllib.parse.urlparse(SOURCE_BROWSER_ROOT)
+    return urllib.parse.urlunparse(parsed._replace(scheme=browser_root.scheme, netloc=browser_root.netloc))
 
 
 def normalize_atr_runner_name(value: Any) -> str:
@@ -130,8 +151,12 @@ class AtrHtmlParser(HTMLParser):
         self.heading_depth: int | None = None
         self.rows: list[dict[str, Any]] = []
         self.row: dict[str, Any] | None = None
+        self.row_tag: str | None = None
+        self.row_depth: int | None = None
         self.cell: list[str] | None = None
         self.cell_index: int | None = None
+        self.cell_tag: str | None = None
+        self.cell_depth: int | None = None
         self.runner_capture: list[str] | None = None
         self.runner_depth: int | None = None
 
@@ -140,12 +165,17 @@ class AtrHtmlParser(HTMLParser):
         attributes = {key: value or "" for key, value in attrs}
         if tag == "h1" and self.heading_depth is None:
             self.heading_depth = self.depth
-        if tag == "tr":
+        role = attributes.get("role", "").lower()
+        if (tag == "tr" or role == "row") and self.row is None:
             self.row = {"cells": [], "runnerName": "", "runnerCell": None}
-        if self.row is not None and tag in {"td", "th"}:
+            self.row_tag = tag
+            self.row_depth = self.depth
+        if self.row is not None and self.cell is None and (tag in {"td", "th"} or role == "cell"):
             self.cell = []
             self.row["cells"].append(self.cell)
             self.cell_index = len(self.row["cells"]) - 1
+            self.cell_tag = tag
+            self.cell_depth = self.depth
         href = attributes.get("href", "")
         if self.row is not None and tag == "a" and "/stats-hub/greyhound/" in href:
             self.runner_capture = []
@@ -171,13 +201,17 @@ class AtrHtmlParser(HTMLParser):
             self.row["runnerName"] = re.sub(r"\([bdw]\s*-.*$", "", raw, flags=re.I).strip()
             self.runner_capture = None
             self.runner_depth = None
-        if tag in {"td", "th"}:
+        if tag == self.cell_tag and self.cell_depth == self.depth:
             self.cell = None
             self.cell_index = None
-        if tag == "tr" and self.row is not None:
+            self.cell_tag = None
+            self.cell_depth = None
+        if tag == self.row_tag and self.row_depth == self.depth and self.row is not None:
             if self.row.get("runnerName"):
                 self.rows.append(self.row)
             self.row = None
+            self.row_tag = None
+            self.row_depth = None
         if tag == "h1" and self.heading_depth == self.depth:
             self.heading_depth = None
         self.depth = max(0, self.depth - 1)
@@ -202,7 +236,11 @@ class AtrRaceLinkParser(HTMLParser):
                 self.links.append(absolute)
 
 
-def parse_atr_html(html: str, source_url: str) -> dict[str, Any]:
+def parse_atr_html(
+    html: str,
+    source_url: str,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     parser = AtrHtmlParser()
     parser.feed(html)
     heading = " ".join(parser.heading)
@@ -211,16 +249,23 @@ def parse_atr_html(html: str, source_url: str) -> dict[str, Any]:
         heading,
         re.I,
     )
-    if not heading_match:
+    if not heading_match and not context:
         raise AtrUnavailable("ATR racecard heading could not be verified.")
-    venue, date_text, start_text = heading_match.groups()
+    venue = str(context.get("venue") or "") if context else ""
+    date_text = ""
+    start_text = ""
+    if heading_match:
+        venue, date_text, start_text = heading_match.groups()
     parsed_date = None
-    for pattern in ("%d %b %y", "%d %B %Y", "%d %b %Y"):
-        try:
-            parsed_date = datetime.strptime(date_text, pattern).date().isoformat()
-            break
-        except ValueError:
-            continue
+    if date_text:
+        for pattern in ("%d %b %y", "%d %B %Y", "%d %b %Y"):
+            try:
+                parsed_date = datetime.strptime(date_text, pattern).date().isoformat()
+                break
+            except ValueError:
+                continue
+    if parsed_date is None and context:
+        parsed_date = context.get("date")
 
     page_text = " ".join(parser.full_text)
     race_match = re.search(r"\bRace\s+(\d{1,2})\b", page_text, re.I)
@@ -269,8 +314,8 @@ def parse_atr_html(html: str, source_url: str) -> dict[str, Any]:
             "scratched": scratched,
         })
 
-    race_number = int(race_match.group(1)) if race_match else None
-    distance = int(distance_match.group(1)) if distance_match else None
+    race_number = int(race_match.group(1)) if race_match else (context.get("raceNumber") if context else None)
+    distance = int(distance_match.group(1)) if distance_match else (context.get("distance") if context else None)
     if not runners or race_number is None or distance is None or parsed_date is None:
         raise AtrUnavailable("ATR card did not contain a complete, usable runner table.")
     return {
@@ -278,18 +323,143 @@ def parse_atr_html(html: str, source_url: str) -> dict[str, Any]:
         "date": parsed_date,
         "raceNumber": race_number,
         "distance": distance,
-        "startText": start_text,
-        "startMinutes": _clock_minutes(start_text),
+        "startText": start_text or (str(context.get("startCode") or "") if context else ""),
+        "startMinutes": _clock_minutes(start_text) if start_text else (context.get("startMinutes") if context else None),
         "sourceUrl": source_url,
         "runners": runners,
     }
 
 
+def _runner_text_pattern(name: Any) -> re.Pattern[str]:
+    cleaned = re.sub(r"^\s*\d+\s*[.\-:]?\s*", "", str(name or ""))
+    cleaned = re.sub(r"\s*\([WM]\)\s*$", "", cleaned, flags=re.I)
+    words = re.findall(r"[A-Za-z0-9]+", cleaned)
+    if not words:
+        return re.compile(r"(?!x)x")
+    return re.compile(r"(?<![A-Za-z0-9])" + r"[\s\W]+".join(map(re.escape, words)) + r"(?![A-Za-z0-9])", re.I)
+
+
+def _source_url_matches_context(source_url: str, context: dict[str, Any]) -> bool:
+    path = urllib.parse.urlparse(source_url).path.lower().rstrip("/")
+    expected = (
+        f"/racecard/{context['sourceCountry']}/{context['venueSlug']}/"
+        f"{context['dateLabel']}/{context['startCode']}"
+    ).lower().rstrip("/")
+    return path == expected
+
+
+def parse_atr_text(
+    text: str,
+    source_url: str,
+    context: dict[str, Any],
+    expected_runners: list[Any],
+) -> dict[str, Any]:
+    compact = " ".join(str(text or "").replace("\xa0", " ").split())
+    if not compact:
+        raise AtrUnavailable("ATR plain-text fallback was empty.")
+    if not _source_url_matches_context(source_url, context):
+        raise AtrUnavailable("ATR fallback URL did not match the selected Betfair race.")
+    distance = int(context["distance"])
+    if not re.search(rf"\b{distance}\s*(?:m|metres|meters)\b", compact, re.I):
+        raise AtrUnavailable("ATR fallback text did not verify the selected race distance.")
+
+    expected = []
+    all_occurrences: list[tuple[int, int, str]] = []
+    for value in expected_runners:
+        name = str(value or "").strip()
+        normalized = normalize_atr_runner_name(name)
+        if not normalized:
+            continue
+        pattern = _runner_text_pattern(name)
+        matches = list(pattern.finditer(compact))
+        expected.append((name, normalized, matches))
+        all_occurrences.extend((match.start(), match.end(), normalized) for match in matches)
+    all_occurrences.sort()
+
+    runners = []
+    for name, normalized, matches in expected:
+        chosen = None
+        for match in matches:
+            later = [start for start, _end, _normalized in all_occurrences if start > match.end()]
+            segment_end = min(later) if later else len(compact)
+            segment = compact[match.end():min(segment_end, match.end() + 1_000)]
+            if re.search(r"Top\s*speed\s*:", segment, re.I) and re.search(r"\b\d{1,3}\s*%", segment):
+                chosen = (match, segment)
+                break
+        if not chosen:
+            continue
+        match, segment = chosen
+        prefix = compact[max(0, match.start() - 100):match.start()]
+        trap_match = re.search(
+            r"(?:^|\s)([1-6])(?:\s+Tip\s*\d+(?:\s+Tipped\s*\d+(?:st|nd|rd|th))?)?\s*$",
+            prefix,
+            re.I,
+        )
+        speed_match = re.search(r"Top\s*speed\s*:\s*(-|\d{1,3})", segment, re.I)
+        if not trap_match or not speed_match:
+            continue
+        trap = int(trap_match.group(1))
+        form_text = segment[:speed_match.start()]
+        positions = re.findall(r"\b([1-6])(?:st|nd|rd|th)\b", form_text, re.I)[:5]
+        top_speed = _number(speed_match.group(1), integer=True)
+        after_speed = segment[speed_match.end():]
+        quick_match = re.search(r"\b(\d{1,3})\s*%", after_speed)
+        before_quick = after_speed[:quick_match.start()] if quick_match else after_speed
+        marker = re.match(
+            r"\s*(?:-|\d{1,3})\s+(?:[A-Z]\s+){1,3}[A-Z][A-Za-z'-]+\s+",
+            before_quick,
+        )
+        comment = before_quick[marker.end():].strip(" -") if marker else before_quick.strip(" -")
+        if comment == "-" or len(comment) > 300:
+            comment = ""
+        scratched = bool(re.search(r"scratched|non[ -]?runner|withdrawn", segment, re.I))
+        runners.append({
+            "name": name,
+            "normalizedName": normalized,
+            "actualBox": trap,
+            "form": None if scratched else ("".join(positions) or None),
+            "comment": None if scratched else (comment or None),
+            "topSpeed": None if scratched else top_speed,
+            "quickForm": None if scratched or not quick_match else int(quick_match.group(1)),
+            "earlyRank": None,
+            "scratched": scratched,
+        })
+
+    early_match = re.search(r"\bEarly Leaders\b(.*?)(?:\bHot Traps\b|$)", compact, re.I)
+    if early_match:
+        early_text = early_match.group(1)
+        ordered = []
+        for runner in runners:
+            match = _runner_text_pattern(runner["name"]).search(early_text)
+            if match:
+                ordered.append((match.start(), runner["normalizedName"]))
+        for rank, (_position, normalized) in enumerate(sorted(ordered), start=1):
+            for runner in runners:
+                if runner["normalizedName"] == normalized:
+                    runner["earlyRank"] = rank
+                    break
+
+    if not runners:
+        raise AtrUnavailable("ATR plain text did not contain usable runner form.")
+    return {
+        "venue": context["venue"],
+        "date": context["date"],
+        "raceNumber": context["raceNumber"],
+        "distance": context["distance"],
+        "startText": context["startCode"],
+        "startMinutes": context["startMinutes"],
+        "sourceUrl": source_url,
+        "sourceMethod": "Plain-text fallback",
+        "runners": runners,
+    }
+
+
 class AtrClient:
-    def __init__(self, cache_dir: Path) -> None:
+    def __init__(self, cache_dir: Path, browser_fetcher: AtrBrowserFetcher | None = None) -> None:
         self.cache_dir = Path(cache_dir)
         self.lock = threading.RLock()
         self.memory: dict[str, dict[str, Any]] = {}
+        self.browser_fetcher = browser_fetcher or AtrBrowserFetcher()
         self.opener = urllib.request.build_opener(
             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
         )
@@ -323,7 +493,18 @@ class AtrClient:
                 return copy.deepcopy(cached)
 
         source_url = self._race_url(context)
-        card = parse_atr_html(self._fetch_text(source_url), source_url)
+        try:
+            card = parse_atr_html(self._fetch_text(source_url), source_url, context)
+            card["sourceMethod"] = "HTTP"
+        except AtrUnavailable as http_error:
+            try:
+                card = parse_atr_html(self.browser_fetcher.fetch(source_url), source_url, context)
+                card["sourceMethod"] = "Headless browser"
+            except AtrUnavailable as browser_error:
+                raise AtrUnavailable(
+                    f"ATR automatic loading failed: {http_error} {browser_error} "
+                    "Use the advanced plain-text fallback."
+                ) from browser_error
         card["fetchedAt"] = datetime.now().astimezone().isoformat(timespec="seconds")
         self.save_racecard(context, card)
         return copy.deepcopy(card)
@@ -420,14 +601,23 @@ class AtrEnricher:
         context = atr_market_context(catalogue)
         if context["countryCode"] not in SUPPORTED_COUNTRIES:
             raise AtrUnavailable("ATR imports are limited to British and Irish races.")
-        if not html.strip() or "<" not in html:
-            raise AtrUnavailable("Copy the complete ATR racecard webpage, then paste it here.")
         attribution_url = str(source_url or self.client.race_url(context))
-        card = parse_atr_html(html, attribution_url)
+        if not html.strip():
+            raise AtrUnavailable("Paste the ATR racecard text or copied webpage.")
+        book_status = {str(item.get("selectionId")): item.get("status") for item in book.get("runners", [])}
+        expected_runners = [
+            runner.get("runnerName") for runner in catalogue.get("runners", [])
+            if book_status.get(str(runner.get("selectionId")), "ACTIVE") == "ACTIVE"
+        ]
+        if "<" in html[:500]:
+            card = parse_atr_html(html, attribution_url, context)
+            card["sourceMethod"] = "Copied webpage"
+        else:
+            card = parse_atr_text(html, attribution_url, context, expected_runners)
         card["fetchedAt"] = datetime.now().astimezone().isoformat(timespec="seconds")
         enriched, status = match_atr_racecard(catalogue, book, context, card)
         status["imported"] = True
-        status["sourceMethod"] = "Browser import"
+        status["sourceMethod"] = card.get("sourceMethod", "Manual fallback")
         self.client.save_racecard(context, card)
         market_key = str(catalogue.get("marketId") or "-")
         with self.lock:
@@ -534,6 +724,7 @@ def match_atr_racecard(
         "unmatchedBetfair": unmatched_betfair,
         "unmatchedSource": unmatched_atr,
         "fetchedAt": card.get("fetchedAt"),
+        "sourceMethod": card.get("sourceMethod", "HTTP"),
     }
     return enriched, status
 
