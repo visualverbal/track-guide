@@ -24,6 +24,9 @@ SOURCE_ROOT = "https://greyhounds.attheraces.com"
 SOURCE_BROWSER_ROOT = "https://greyhounds1.attheraces.com"
 SUPPORTED_COUNTRIES = {"GB", "GBR", "UK", "IE", "IRL", "IRE"}
 MIN_RUNNER_OVERLAP = 0.80
+DISTANCE_EQUIVALENTS = {
+    "newcastle": {(480, 500), (500, 480)},
+}
 BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "en-GB,en;q=0.9",
@@ -638,17 +641,31 @@ def _matching_venue(value: Any) -> str:
     return aliases.get(normalized, normalized)
 
 
+def _matching_distance(venue: Any, market_distance: Any, source_distance: Any) -> tuple[bool, bool]:
+    try:
+        pair = (int(market_distance), int(source_distance))
+    except (TypeError, ValueError):
+        return False, False
+    if pair[0] == pair[1]:
+        return True, False
+    equivalent = pair in DISTANCE_EQUIVALENTS.get(_matching_venue(venue), set())
+    return equivalent, equivalent
+
+
 def match_atr_racecard(
     catalogue: dict[str, Any],
     book: dict[str, Any],
     context: dict[str, Any],
     card: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    distance_matches, distance_adjusted = _matching_distance(
+        context.get("venue"), context.get("distance"), card.get("distance")
+    )
     checks = {
         "venue": _matching_venue(card.get("venue")) == _matching_venue(context.get("venue")),
         "date": card.get("date") == context.get("date"),
         "raceNumber": card.get("raceNumber") == context.get("raceNumber"),
-        "distance": card.get("distance") == context.get("distance"),
+        "distance": distance_matches,
     }
     if not all(checks.values()):
         failed = ", ".join(key for key, passed in checks.items() if not passed)
@@ -721,6 +738,9 @@ def match_atr_racecard(
         "runnerOverlap": round(overlap, 3),
         "startDifferenceMinutes": start_difference,
         "scheduleChanged": schedule_changed,
+        "marketDistance": context.get("distance"),
+        "sourceDistance": card.get("distance"),
+        "distanceAdjusted": distance_adjusted,
         "unmatchedBetfair": unmatched_betfair,
         "unmatchedSource": unmatched_atr,
         "fetchedAt": card.get("fetchedAt"),

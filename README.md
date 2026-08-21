@@ -44,6 +44,8 @@ For British and Irish races, Live Check uses [At The Races Greyhounds](https://g
 
 ATR Top Speed is displayed as a supporting performance rating; it is not presented as Early Speed. The Early column only uses ATR's explicit **Early Leaders** race angle or supported comment evidence. If both automatic methods fail, **Advanced fallback** accepts either copied ATR webpage HTML or flattened page text. Flattened text does not need to preserve the page heading, but it must come from the exact selected race URL and still pass distance and runner-overlap checks. A failed or low-confidence match leaves Betfair prices and the existing Live Check working.
 
+ATR currently describes Newcastle's modern standard trip as 500m while Betfair may label the same race 480m. That single venue-specific 480/500 equivalence is accepted only when the remaining race identity and runner-overlap checks pass, and Live Check discloses both distances.
+
 ### Race Summary priority
 
 Race Summary ranks available evidence in this order: recent form, early speed, verified box/trap context, market rank, then rating. Expert comments act as a qualitative check and can downgrade a superficially strong runner. A top rating by itself cannot create a **Top Signal**, and the summary does not use the former value calculator or claim a profitable bet.

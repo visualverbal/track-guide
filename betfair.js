@@ -435,7 +435,7 @@
         : liveEscape(sourceName);
       const method = enrichment.sourceMethod ? `Loaded via ${liveEscape(enrichment.sourceMethod)}. ` : "";
       const detail = enrichment.sourceKey === "atr"
-        ? `Actual traps, form, Top Speed, Quick Form and expert view from ${sourceLink}. Top Speed is not early speed.`
+        ? `Actual traps, form, Top Speed, Quick Form and expert view from ${sourceLink}. Top Speed is not early speed.${enrichment.distanceAdjusted ? ` ATR lists ${liveEscape(enrichment.sourceDistance)}m; Betfair labels this race ${liveEscape(enrichment.marketDistance)}m.` : ""}`
         : `Actual boxes and form from ${sourceLink}. Our $ is reference only.`;
       return `
         <div class="enrichment-status matched">

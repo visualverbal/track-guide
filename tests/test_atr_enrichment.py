@@ -149,6 +149,23 @@ class AtrParsingTests(unittest.TestCase):
             with self.assertRaises(AtrUnavailable):
                 enricher.import_html(catalogue, book, text, SHEFFIELD_URL)
 
+    def test_accepts_only_the_known_newcastle_distance_equivalence(self):
+        catalogue, book = sheffield_market()
+        catalogue["event"] = {"name": "Newcastle", "venue": "Newcastle", "countryCode": "GB"}
+        catalogue["marketName"] = "R12 480m A4"
+        context = atr_market_context(catalogue)
+        card = parse_atr_html(SHEFFIELD_RENDERED.read_text(encoding="utf-8"), SHEFFIELD_URL, context)
+        card["venue"] = "Newcastle"
+        card["distance"] = 500
+        _enriched, status = match_atr_racecard(catalogue, book, context, card)
+        self.assertTrue(status["distanceAdjusted"])
+        self.assertEqual((status["marketDistance"], status["sourceDistance"]), (480, 500))
+
+        catalogue["event"] = {"name": "Sheffield", "venue": "Sheffield", "countryCode": "GB"}
+        card["venue"] = "Sheffield"
+        with self.assertRaises(AtrUnavailable):
+            match_atr_racecard(catalogue, book, atr_market_context(catalogue), card)
+
 
 class StubAtrClient(AtrClient):
     def __init__(self, cache_dir, html, browser_fetcher=None):
