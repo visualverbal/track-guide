@@ -79,6 +79,10 @@ class AtrParsingTests(unittest.TestCase):
         self.assertEqual(by_name["isaacshope"]["earlyRank"], 3)
         self.assertIsNone(by_name["flyhighstar"]["earlyRank"])
 
+    def test_uses_selected_card_distance_not_hidden_adjacent_race(self):
+        card = parse_atr_html("<div>500 metres</div>" + self.html, SOURCE_URL)
+        self.assertEqual(card["distance"], 480)
+
     def test_matches_every_runner_and_uses_atr_traps(self):
         catalogue, book = dunstall_market()
         enriched, status = match_atr_racecard(catalogue, book, atr_market_context(catalogue), self.card)
@@ -104,10 +108,25 @@ class AtrParsingTests(unittest.TestCase):
         with self.assertRaises(AtrUnavailable):
             match_atr_racecard(catalogue, book, atr_market_context(catalogue), self.card)
 
+    def test_matches_when_betfair_omits_the_race_number(self):
+        catalogue, book = dunstall_market()
+        catalogue["marketName"] = "A4 480m"
+        context = atr_market_context(catalogue)
+        self.assertIsNone(context["raceNumber"])
+        _enriched, status = match_atr_racecard(catalogue, book, context, self.card)
+        self.assertEqual(status["matchedRunners"], 6)
+
     def test_parses_rendered_role_rows_without_a_page_race_number(self):
         catalogue, book = sheffield_market()
+        catalogue["marketName"] = "A3 500m"
         context = atr_market_context(catalogue)
-        card = parse_atr_html(SHEFFIELD_RENDERED.read_text(encoding="utf-8"), SHEFFIELD_URL, context)
+        links = "".join(
+            f'<a href="/racecard/GB/sheffield/18-August-2026/{hour}{minute:02d}">Card</a>'
+            for hour, minute in [(10, 57), (11, 14), (11, 31), (11, 48), (12, 6), (12, 23),
+                                 (12, 41), (12, 59), (13, 16), (13, 34), (13, 51), (14, 7)]
+        )
+        html = links + SHEFFIELD_RENDERED.read_text(encoding="utf-8")
+        card = parse_atr_html(html, SHEFFIELD_URL, context)
         enriched, status = match_atr_racecard(catalogue, book, context, card)
         self.assertEqual(status["matchedRunners"], 5)
         self.assertEqual(card["raceNumber"], 12)
@@ -189,6 +208,22 @@ class StubBrowserFetcher:
 
 
 class AtrCacheImportTests(unittest.TestCase):
+    def test_derives_missing_betfair_race_number_from_atr_start_time(self):
+        catalogue, _book = dunstall_market()
+        catalogue["marketName"] = "A4 480m"
+        context = atr_market_context(catalogue)
+        links = "".join(
+            f'<a href="/racecard/GB/dunstall-park/17-August-2026/{code}">Card</a>'
+            for code in ("1101", "1118", "1134", "1151", "1209", "1226")
+        )
+        html = links + FIXTURE.read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            client = StubAtrClient(Path(temporary), html)
+            card = client.get_racecard(context)
+        self.assertEqual(context["raceNumber"], 6)
+        self.assertEqual(card["raceNumber"], 6)
+        self.assertEqual(client.fetches, [AtrClient.meeting_url(context), SOURCE_URL])
+
     def test_fetches_once_and_reuses_disk_cache(self):
         catalogue, _book = dunstall_market()
         context = atr_market_context(catalogue)

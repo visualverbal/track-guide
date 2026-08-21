@@ -272,7 +272,11 @@ def parse_atr_html(
 
     page_text = " ".join(parser.full_text)
     race_match = re.search(r"\bRace\s+(\d{1,2})\b", page_text, re.I)
-    distance_match = re.search(r"\b(\d{3,4})\s+metres\b", page_text, re.I)
+    distance_scope = page_text
+    heading_position = page_text.lower().find(heading.lower()) if heading else -1
+    if heading_position >= 0:
+        distance_scope = page_text[heading_position:]
+    distance_match = re.search(r"\b(\d{3,4})\s+metres\b", distance_scope, re.I)
     early_section = re.search(r"\bEarly Leaders\b(.*?)(?:\bHot Traps\b|$)", page_text, re.I)
     early_traps = []
     if early_section:
@@ -318,6 +322,14 @@ def parse_atr_html(
         })
 
     race_number = int(race_match.group(1)) if race_match else (context.get("raceNumber") if context else None)
+    if race_number is None and context:
+        link_parser = AtrRaceLinkParser(context)
+        link_parser.feed(html)
+        source_path = urllib.parse.urlparse(source_url).path.rstrip("/").lower()
+        for race_index, link in enumerate(link_parser.links):
+            if urllib.parse.urlparse(link).path.rstrip("/").lower() == source_path:
+                race_number = race_index + 1
+                break
     distance = int(distance_match.group(1)) if distance_match else (context.get("distance") if context else None)
     if not runners or race_number is None or distance is None or parsed_date is None:
         raise AtrUnavailable("ATR card did not contain a complete, usable runner table.")
@@ -483,9 +495,13 @@ class AtrClient:
 
     @staticmethod
     def _race_key(context: dict[str, Any]) -> str:
-        return f"{context['sourceCountry'].lower()}-{context['venueSlug']}-{context['dateStamp']}-r{context['raceNumber']}"
+        race_id = f"r{context['raceNumber']}" if context.get("raceNumber") else f"t{context['startCode']}"
+        return f"{context['sourceCountry'].lower()}-{context['venueSlug']}-{context['dateStamp']}-{race_id}"
 
     def get_racecard(self, context: dict[str, Any]) -> dict[str, Any]:
+        # Betfair often omits race numbers from UK market names. Resolve the
+        # exact ATR meeting link first so its schedule position can supply one.
+        source_url = self._race_url(context) if not context.get("raceNumber") else None
         key = self._race_key(context)
         with self.lock:
             if key in self.memory:
@@ -495,7 +511,7 @@ class AtrClient:
                 self.memory[key] = cached
                 return copy.deepcopy(cached)
 
-        source_url = self._race_url(context)
+        source_url = source_url or self._race_url(context)
         try:
             card = parse_atr_html(self._fetch_text(source_url), source_url, context)
             card["sourceMethod"] = "HTTP"
@@ -524,9 +540,18 @@ class AtrClient:
             links = parser.links
             if links:
                 self._write_cache(f"meeting-{meeting_key}.json", links)
-        race_index = int(context["raceNumber"]) - 1
-        if isinstance(links, list) and 0 <= race_index < len(links):
-            return links[race_index]
+        if isinstance(links, list):
+            if context.get("raceNumber"):
+                race_index = int(context["raceNumber"]) - 1
+                if 0 <= race_index < len(links):
+                    return links[race_index]
+            else:
+                start_code = str(context.get("startCode") or "")
+                for race_index, link in enumerate(links):
+                    path = urllib.parse.urlparse(link).path.rstrip("/")
+                    if path.endswith(f"/{start_code}"):
+                        context["raceNumber"] = race_index + 1
+                        return link
         return self.race_url(context)
 
     def save_racecard(self, context: dict[str, Any], card: dict[str, Any]) -> None:
@@ -573,7 +598,7 @@ class AtrEnricher:
         context = atr_market_context(catalogue)
         if context["countryCode"] not in SUPPORTED_COUNTRIES:
             return catalogue, self._status("not-applicable", "ATR enrichment is limited to British and Irish races.")
-        required = ("venueSlug", "raceNumber", "distance", "dateStamp", "startCode")
+        required = ("venueSlug", "distance", "dateStamp", "startCode")
         if any(not context.get(key) for key in required):
             return catalogue, self._status("unavailable", "Betfair race metadata was incomplete; ATR lookup was skipped.", context)
 
@@ -664,7 +689,10 @@ def match_atr_racecard(
     checks = {
         "venue": _matching_venue(card.get("venue")) == _matching_venue(context.get("venue")),
         "date": card.get("date") == context.get("date"),
-        "raceNumber": card.get("raceNumber") == context.get("raceNumber"),
+        "raceNumber": (
+            context.get("raceNumber") is None
+            or card.get("raceNumber") == context.get("raceNumber")
+        ),
         "distance": distance_matches,
     }
     if not all(checks.values()):

@@ -42,6 +42,8 @@ The local connector must be restarted after connector code changes. Betfair cred
 
 For British and Irish races, Live Check uses [At The Races Greyhounds](https://greyhounds.attheraces.com/) as the optional form source. It first tries the normal HTTP page, then silently renders ATR in an installed Edge or Chrome browser when the HTTP response contains only the app shell. The match verifies venue, local date, race number, start time, distance and normalized runner-name overlap before adding actual trap, recent Form, Top Speed, Expert View and Quick Form. Each validated card is stored once in `.atr-cache/`, so polling only refreshes Betfair prices.
 
+Betfair sometimes omits the race number from British market names. In that case the connector derives it from the exact start-time link in ATR's meeting schedule before applying the normal race identity and runner-overlap checks.
+
 ATR Top Speed is displayed as a supporting performance rating; it is not presented as Early Speed. The Early column only uses ATR's explicit **Early Leaders** race angle or supported comment evidence. If both automatic methods fail, **Advanced fallback** accepts either copied ATR webpage HTML or flattened page text. Flattened text does not need to preserve the page heading, but it must come from the exact selected race URL and still pass distance and runner-overlap checks. A failed or low-confidence match leaves Betfair prices and the existing Live Check working.
 
 ATR currently describes Newcastle's modern standard trip as 500m while Betfair may label the same race 480m. That single venue-specific 480/500 equivalence is accepted only when the remaining race identity and runner-overlap checks pass, and Live Check discloses both distances.
