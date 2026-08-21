@@ -24,6 +24,7 @@ SOURCE_ROOT = "https://greyhounds.attheraces.com"
 SOURCE_BROWSER_ROOT = "https://greyhounds1.attheraces.com"
 SUPPORTED_COUNTRIES = {"GB", "GBR", "UK", "IE", "IRL", "IRE"}
 MIN_RUNNER_OVERLAP = 0.80
+ATR_CACHE_VERSION = 2
 DISTANCE_EQUIVALENTS = {
     "newcastle": {(480, 500), (500, 480)},
 }
@@ -300,7 +301,7 @@ def parse_atr_html(
         if trap is None or not 1 <= trap <= 6 or len(cells) <= runner_cell + 4:
             continue
         top_speed = _number(cells[runner_cell + 1], integer=True)
-        if top_speed is None or not 0 <= top_speed <= 100 or "%" not in cells[runner_cell + 4]:
+        if (top_speed is not None and not 0 <= top_speed <= 100) or "%" not in cells[runner_cell + 4]:
             continue
         seen.add(normalized)
         runner_text = cells[runner_cell]
@@ -334,6 +335,7 @@ def parse_atr_html(
     if not runners or race_number is None or distance is None or parsed_date is None:
         raise AtrUnavailable("ATR card did not contain a complete, usable runner table.")
     return {
+        "cacheVersion": ATR_CACHE_VERSION,
         "venue": venue.strip(),
         "date": parsed_date,
         "raceNumber": race_number,
@@ -457,6 +459,7 @@ def parse_atr_text(
     if not runners:
         raise AtrUnavailable("ATR plain text did not contain usable runner form.")
     return {
+        "cacheVersion": ATR_CACHE_VERSION,
         "venue": context["venue"],
         "date": context["date"],
         "raceNumber": context["raceNumber"],
@@ -507,7 +510,7 @@ class AtrClient:
             if key in self.memory:
                 return copy.deepcopy(self.memory[key])
             cached = self._read_cache(f"race-{key}.json")
-            if cached:
+            if cached and cached.get("cacheVersion") == ATR_CACHE_VERSION:
                 self.memory[key] = cached
                 return copy.deepcopy(cached)
 
@@ -630,18 +633,36 @@ class AtrEnricher:
         if context["countryCode"] not in SUPPORTED_COUNTRIES:
             raise AtrUnavailable("ATR imports are limited to British and Irish races.")
         attribution_url = str(source_url or self.client.race_url(context))
-        if not html.strip():
-            raise AtrUnavailable("Paste the ATR racecard text or copied webpage.")
+        reload_allowed = _source_url_matches_context(attribution_url, context)
         book_status = {str(item.get("selectionId")): item.get("status") for item in book.get("runners", [])}
         expected_runners = [
             runner.get("runnerName") for runner in catalogue.get("runners", [])
             if book_status.get(str(runner.get("selectionId")), "ACTIVE") == "ACTIVE"
         ]
-        if "<" in html[:500]:
-            card = parse_atr_html(html, attribution_url, context)
-            card["sourceMethod"] = "Copied webpage"
+        paste_error: AtrUnavailable | None = None
+        card = None
+        if html.strip():
+            try:
+                if "<" in html[:500]:
+                    card = parse_atr_html(html, attribution_url, context)
+                    card["sourceMethod"] = "Copied webpage"
+                else:
+                    card = parse_atr_text(html, attribution_url, context, expected_runners)
+            except AtrUnavailable as error:
+                paste_error = error
         else:
-            card = parse_atr_text(html, attribution_url, context, expected_runners)
+            paste_error = AtrUnavailable("The clipboard did not contain usable ATR racecard rows.")
+
+        if card is None:
+            if not reload_allowed:
+                raise paste_error or AtrUnavailable("ATR fallback URL did not match the selected Betfair race.")
+            try:
+                card = self.client.get_racecard(context)
+                card["sourceMethod"] = "Verified URL reload"
+            except AtrUnavailable as reload_error:
+                if paste_error:
+                    raise AtrUnavailable(f"{paste_error} Verified ATR reload also failed: {reload_error}") from reload_error
+                raise
         card["fetchedAt"] = datetime.now().astimezone().isoformat(timespec="seconds")
         enriched, status = match_atr_racecard(catalogue, book, context, card)
         status["imported"] = True

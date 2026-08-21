@@ -190,11 +190,12 @@
     liveEls.recorderPaste.value = "";
     liveEls.recorderError.textContent = "";
     liveEls.formImportTitle.textContent = atr ? "ATR Advanced Fallback" : "Recorder Advanced Fallback";
-    liveEls.formImportLabel.textContent = atr ? "ATR racecard HTML or plain text" : "Recorder long-form webpage";
+    liveEls.formImportLabel.textContent = atr ? "ATR racecard HTML or plain text (optional)" : "Recorder long-form webpage";
     liveEls.recorderLink.textContent = atr ? "Open At The Races" : "Open Recorder";
     liveEls.recorderLink.href = sourceUrl || (atr
       ? "https://greyhounds.attheraces.com/racecards/today"
       : "https://www.thegreyhoundrecorder.com.au/form-guides/");
+    liveEls.recorderForm.querySelector('button[type="submit"]').textContent = atr ? "Load ATR form" : "Use fallback";
     liveEls.recorderDialog.showModal();
   }
 
@@ -225,7 +226,7 @@
       liveEls.recorderError.textContent = error.message;
     } finally {
       submit.disabled = false;
-      submit.textContent = "Use fallback";
+      submit.textContent = liveState.formImportSource === "atr" ? "Load ATR form" : "Use fallback";
     }
   }
 

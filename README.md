@@ -46,6 +46,8 @@ Betfair sometimes omits the race number from British market names. In that case 
 
 ATR Top Speed is displayed as a supporting performance rating; it is not presented as Early Speed. The Early column only uses ATR's explicit **Early Leaders** race angle or supported comment evidence. If both automatic methods fail, **Advanced fallback** accepts either copied ATR webpage HTML or flattened page text. Flattened text does not need to preserve the page heading, but it must come from the exact selected race URL and still pass distance and runner-overlap checks. A failed or low-confidence match leaves Betfair prices and the existing Live Check working.
 
+If ATR supplies only footer text through the clipboard, **Advanced fallback** reloads the exact race URL already derived from the selected Betfair market. The reloaded card still has to pass the same venue, date, start time, distance and runner-overlap checks. A missing optional Top Speed value does not discard otherwise valid form and comment data for that runner.
+
 ATR currently describes Newcastle's modern standard trip as 500m while Betfair may label the same race 480m. That single venue-specific 480/500 equivalence is accepted only when the remaining race identity and runner-overlap checks pass, and Live Check discloses both distances.
 
 ### Race Summary priority

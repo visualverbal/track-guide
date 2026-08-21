@@ -83,6 +83,23 @@ class AtrParsingTests(unittest.TestCase):
         card = parse_atr_html("<div>500 metres</div>" + self.html, SOURCE_URL)
         self.assertEqual(card["distance"], 480)
 
+    def test_keeps_runner_when_optional_top_speed_is_missing(self):
+        html = """
+        <h1>Dunstall Park Greyhound Racecard for 17 Aug 26 12:26</h1>
+        <p>Race 6</p><p>480 metres</p>
+        <div role="row">
+          <div role="cell">1</div>
+          <div role="cell"><a href="/stats-hub/greyhound/1/test-runner">Test Runner</a> 2nd 4th 3rd</div>
+          <div role="cell">-</div><div role="cell">A Trainer</div>
+          <div role="cell">Still has a chance despite the missing rating</div>
+          <div role="cell">62 %</div>
+        </div>
+        """
+        card = parse_atr_html(html, SOURCE_URL)
+        self.assertEqual(card["runners"][0]["form"], "243")
+        self.assertIsNone(card["runners"][0]["topSpeed"])
+        self.assertEqual(card["runners"][0]["quickForm"], 62)
+
     def test_matches_every_runner_and_uses_atr_traps(self):
         catalogue, book = dunstall_market()
         enriched, status = match_atr_racecard(catalogue, book, atr_market_context(catalogue), self.card)
@@ -248,6 +265,22 @@ class AtrCacheImportTests(unittest.TestCase):
             reused, reused_status = enricher.enrich(catalogue, book)
             self.assertEqual(reused_status["sourceMethod"], "Copied webpage")
             self.assertEqual(reused["runners"][0]["formData"]["rating"], 100)
+
+    def test_footer_only_paste_reloads_verified_atr_url(self):
+        catalogue, book = dunstall_market()
+        html = FIXTURE.read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            enricher = AtrEnricher(Path(temporary))
+            enricher.client = StubAtrClient(Path(temporary), html)
+            enriched, status = enricher.import_html(
+                catalogue,
+                book,
+                "Privacy Policy Cookie Policy At The Races. All Rights reserved",
+                SOURCE_URL,
+            )
+        self.assertEqual(status["status"], "matched")
+        self.assertEqual(status["sourceMethod"], "Verified URL reload")
+        self.assertEqual(enriched["runners"][0]["formData"]["form"], "31261")
 
     def test_uses_hidden_browser_after_http_shell_then_reuses_cache(self):
         catalogue, _book = sheffield_market()
