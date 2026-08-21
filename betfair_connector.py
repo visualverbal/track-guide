@@ -367,9 +367,9 @@ class ConnectorHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
     def log_message(self, format_string: str, *args: Any) -> None:
-        path = urllib.parse.urlparse(self.path).path
-        if not path.startswith("/api/"):
-            super().log_message(format_string, *args)
+        # The connector is normally launched with pythonw and has no stderr.
+        # SimpleHTTPRequestHandler's default logger would crash page requests.
+        return
 
     def end_headers(self) -> None:
         origin = self.headers.get("Origin")
