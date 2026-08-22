@@ -72,7 +72,7 @@ The parsed names and odds remain editable. The checker identifies the favourite 
 - Newly calculated AU figures use Betfair greyhound WIN BSP files from 1 January 2022 to 31 May 2025. Parklands uses its available history from 2025 through 14 August 2026.
 - AU `bestDrawRate` is the winning percentage for all runners from that box, not only favourites.
 - Refreshed Sheffield figures use Betfair WIN BSP files from 1 January to 14 August 2026.
-- Irish figures use official Greyhound Racing Ireland results over the same 2026 period. Kilkenny uses 398 single favourites from 57 meetings; all qualifying races were over 525 yards.
+- Irish figures use official Greyhound Racing Ireland results over the same 2026 period. Kilkenny uses 398 single favourites from 57 meetings; all qualifying races were over 525 yards. Youghal uses 532 single favourites from 65 meetings, with its 40-race 325-yard split explicitly treated as a small sample.
 - A favourite is the single shortest Betfair starting price for Betfair calculations, or the single runner marked `f` in Irish results. Joint favourites are excluded.
 - UK and Irish `bestDrawRate` is the win percentage when the favourite starts from that trap.
 
